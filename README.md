@@ -139,7 +139,7 @@ No other language does this.
 
 ---
 
-## What we built
+## Architecture
 
 Aether is not a wrapper. It is built from scratch in pure Python with zero dependencies.
 
