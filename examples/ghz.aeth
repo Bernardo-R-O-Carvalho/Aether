@@ -1,0 +1,17 @@
+# Exemplo quântico 3: Estado GHZ (3 qubits entrelaçados)
+# Resultado: sempre 000 ou 111 — nunca misturado
+
+quantum circuit EstadoGHZ:
+    qubit q0
+    qubit q1
+    qubit q2
+
+    gate hadamard(target=q0)
+    gate cnot(control=q0, target=q1)
+    gate cnot(control=q0, target=q2)
+
+    measure q0
+    measure q1
+    measure q2
+
+infer EstadoGHZ using quantum(shots=2048)

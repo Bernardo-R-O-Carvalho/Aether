@@ -1,0 +1,14 @@
+# Exemplo quântico 1: Par de Bell
+# Dois qubits entrelaçados — medir um colapsa o outro
+
+quantum circuit ParDeBell:
+    qubit q0
+    qubit q1
+
+    gate hadamard(target=q0)
+    gate cnot(control=q0, target=q1)
+
+    measure q0
+    measure q1
+
+infer ParDeBell using quantum(shots=2048)

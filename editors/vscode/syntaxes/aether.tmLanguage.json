@@ -1,0 +1,77 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Aether",
+  "scopeName": "source.aeth",
+  "fileTypes": ["aeth"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#distributions" },
+    { "include": "#gates" },
+    { "include": "#operators" },
+    { "include": "#numbers" },
+    { "include": "#strings" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.aeth",
+      "match": "#.*$"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.aeth",
+          "match": "\\b(model|quantum|circuit|infer|observe|using|for|in|import|measure|qubit)\\b"
+        },
+        {
+          "name": "keyword.other.aeth",
+          "match": "\\b(montecarlo|mcmc|quantum|samples|warmup|shots|step_size)\\b"
+        }
+      ]
+    },
+    "distributions": {
+      "name": "support.function.distribution.aeth",
+      "match": "\\b(normal|beta|bernoulli|uniform|poisson|categorical)\\b"
+    },
+    "gates": {
+      "name": "support.function.gate.aeth",
+      "match": "\\b(hadamard|cnot|pauli_x|pauli_y|pauli_z|phase|identity)\\b"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.sample.aeth",
+          "match": "~"
+        },
+        {
+          "name": "keyword.operator.assignment.aeth",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.arithmetic.aeth",
+          "match": "[+\\-*/]"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.aeth",
+      "match": "\\b\\d+(\\.\\d+)?\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.aeth",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.aeth",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "identifiers": {
+      "name": "variable.other.aeth",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+    }
+  }
+}

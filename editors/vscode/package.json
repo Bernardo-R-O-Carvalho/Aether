@@ -1,0 +1,31 @@
+{
+  "name": "aether-lang",
+  "displayName": "Aether",
+  "description": "Syntax highlighting for Aether (.aeth) — probabilistic and quantum programming language",
+  "version": "0.3.0",
+  "publisher": "aether-lang",
+  "engines": { "vscode": "^1.60.0" },
+  "categories": ["Programming Languages"],
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/aether"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "aether",
+        "aliases": ["Aether", "aeth"],
+        "extensions": [".aeth"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "aether",
+        "scopeName": "source.aeth",
+        "path": "./syntaxes/aether.tmLanguage.json"
+      }
+    ]
+  }
+}

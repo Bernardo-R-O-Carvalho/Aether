@@ -1,0 +1,11 @@
+# Exemplo 1: Previsão de chuva
+# Inferir a probabilidade de chuva dado umidade observada
+
+model PrevisaoChuva:
+    umidade   ~ beta(a=2, b=3)
+    vento     ~ normal(mean=15, std=5)
+    chuva     ~ bernoulli(prob=umidade)
+
+    observe umidade = 0.82
+
+infer PrevisaoChuva using montecarlo(samples=5000)

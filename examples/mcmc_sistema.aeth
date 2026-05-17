@@ -1,0 +1,15 @@
+# Teste MCMC 2: modelo que MATA o rejection sampling
+# Três variáveis contínuas com observação precisa
+# Rejection sampling teria ~0% de aceitação aqui
+# MCMC navega até a região de alta probabilidade
+
+model SistemaRuidoso:
+    sinal     ~ normal(mean=50, std=10)
+    ruido_a   ~ normal(mean=0, std=2)
+    ruido_b   ~ normal(mean=0, std=2)
+    medicao_a = sinal + ruido_a
+    medicao_b = sinal + ruido_b
+
+    observe sinal = 48
+
+infer SistemaRuidoso using mcmc(samples=5000, warmup=1000, step_size=0.5)
