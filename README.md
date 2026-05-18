@@ -40,6 +40,8 @@ Aether is a language. Not a library. Not a framework. A language — with its ow
 | Bayesian inference | ✓ | ✗ | ✓ |
 | Quantum simulation | ✗ | ✓ | ✓ |
 | Both in one file | ✗ | ✗ | ✓ |
+| Hierarchical models | ✓ | ✗ | ✓ |
+| HMC inference | ✓ | ✗ | ✓ |
 | Readable without docs | ✗ | ✗ | ✓ |
 
 ---
@@ -79,6 +81,21 @@ bias  — posterior distribution
    mean   = 0.6742   std = 0.1204   median = 0.6801
    90% CI = [0.4812, 0.8534]   R-hat = 1.001 ✓
 ```
+
+### Hierarchical models
+
+```
+model Schools:
+    global_mean ~ normal(mean=70, std=10)
+    global_std  ~ normal(mean=5, std=2)
+
+    for school in ["A", "B", "C", "D", "E"]:
+        mean[school] ~ normal(mean=global_mean, std=global_std)
+
+infer Schools using hmc(samples=2000, warmup=500, step_size=0.15, steps=15)
+```
+
+Each school has its own mean, drawn from a global distribution. Schools inform each other through the shared prior. This is partial pooling — the core of hierarchical Bayesian modeling.
 
 ### Quantum: state vector simulation
 
@@ -149,9 +166,13 @@ Aether is not a wrapper. It is built from scratch in pure Python with zero depen
 
 **Type system** — lightweight runtime type checking. `beta(...)` produces a value in `[0,1]`. `bernoulli(...)` produces `{0, 1}`. Violations are caught with useful messages, not silent wrong results.
 
-**Classical runtime** — evaluates probabilistic programs. Supports six built-in distributions: `normal`, `beta`, `bernoulli`, `uniform`, `poisson`, `categorical`. Two inference engines: rejection sampling for simple models, Metropolis-Hastings MCMC for everything else.
+**Classical runtime** — evaluates probabilistic programs. Supports six built-in distributions: `normal`, `beta`, `bernoulli`, `uniform`, `poisson`, `categorical`. Three inference engines: rejection sampling, Metropolis-Hastings MCMC, and Hamiltonian Monte Carlo.
 
 **MCMC engine** — Metropolis-Hastings with Gaussian random walk proposals. Supports multiple observations (`observe x = [1, 0, 1, 1]`), R-hat convergence diagnostics, ASCII posterior histograms, and trace plots for chain health visualization.
+
+**HMC engine** — Hamiltonian Monte Carlo with leapfrog integration. Uses gradient information to explore the posterior much more efficiently than MH — especially for hierarchical models with many correlated variables. Supports automatic differentiation via JAX when available, with a pure-Python numerical gradient fallback that requires zero dependencies.
+
+**Hierarchical models** — indexed variables (`mean[group] ~ normal(...)`) and `for` loops inside model bodies. Enables partial pooling across groups — the most powerful pattern in Bayesian statistics.
 
 **Quantum simulator** — full complex state vector simulation. Represents n qubits as a 2ⁿ-dimensional vector of complex amplitudes. Implements Hadamard, CNOT, Pauli X/Y/Z, and phase gates using correct unitary matrix mathematics. Collapses the wave function on measurement via the Born rule.
 
@@ -199,8 +220,8 @@ Aether is not a wrapper. It is built from scratch in pure Python with zero depen
 git clone https://github.com/Bernardo-R-O-Carvalho/Aether
 cd Aether
 python src/interpreter.py examples/bell_pair.aeth
-python src/interpreter.py examples/chuva.aeth
-python src/interpreter.py examples/classical_and_quantum.aeth
+python src/interpreter.py examples/hierarchical_schools.aeth
+python src/interpreter.py examples/hmc_coin.aeth
 ```
 
 No pip install. No virtual environment. No dependencies. Pure Python 3.8+.
@@ -212,11 +233,14 @@ Or open `playground.html` in any browser and run `.aeth` programs without instal
 ## Inference methods
 
 ```
-# Rejection sampling — simple models
+# Rejection sampling — simple models, few variables
 infer MyModel using montecarlo(samples=5000)
 
 # Metropolis-Hastings MCMC — complex models, multiple observations
 infer MyModel using mcmc(samples=5000, warmup=1000, step_size=0.3)
+
+# Hamiltonian Monte Carlo — hierarchical models, high-dimensional posteriors
+infer MyModel using hmc(samples=2000, warmup=500, step_size=0.1, steps=10)
 
 # Quantum circuit simulation
 infer MyCircuit using quantum(shots=2048)
@@ -225,16 +249,33 @@ infer MyCircuit using quantum(shots=2048)
 **When to use each:**
 - `montecarlo` — fewer than 3 variables, loose observations. Simple and fast.
 - `mcmc` — any model with tight observations or many variables. Use when `montecarlo` gives 0% acceptance.
+- `hmc` — hierarchical models, correlated parameters, high-dimensional posteriors. Dramatically better mixing than MH. Install JAX for maximum performance.
 - `quantum` — quantum circuits with superposition, entanglement, and interference.
+
+### HMC and JAX
+
+HMC uses gradients of the log-probability to navigate the posterior intelligently. Aether supports two backends:
+
+- **JAX** (recommended): exact automatic differentiation. Install with `pip install jax jaxlib`. Aether detects JAX automatically and uses it when available.
+- **Numerical** (default): pure Python finite differences. Zero dependencies. Slower for large models but mathematically correct.
+
+```
+# With JAX installed:
+Backend    : JAX (autodiff)
+
+# Without JAX:
+Backend    : numerical gradients (install jax for better performance)
+```
 
 ---
 
-## Reading MCMC output
+## Reading MCMC/HMC output
 
 ```
-Acceptance : 61.3%  ✓       # 20-70% is healthy
+Acceptance : 61.3%  ✓       # MH healthy range: 20-70%
+                             # HMC healthy range: 60-90%
                              # < 10%: reduce step_size
-                             # > 80%: increase step_size
+                             # > 95%: increase step_size
 
 R-hat = 1.001 ✓             # < 1.1: chain converged
                              # > 1.1: run longer or debug model
@@ -247,9 +288,9 @@ R-hat = 1.001 ✓             # < 1.1: chain converged
 
 ## Honest limitations
 
-Aether is not PyMC. The MCMC engine uses Metropolis-Hastings with Gaussian proposals — correct and functional, but less efficient than HMC (Hamiltonian Monte Carlo), which uses gradients to navigate probability space. HMC requires automatic differentiation and is the next major milestone for Aether.
-
 The quantum simulator uses full state vectors, which require 2ⁿ memory. Accurate up to ~20 qubits on a standard machine. It is a classical simulation, not quantum hardware — but the mathematics is identical to what runs on real devices.
+
+HMC without JAX uses numerical gradients (finite differences), which require 2N model evaluations per gradient computation. For models with many variables, `pip install jax jaxlib` is strongly recommended.
 
 ---
 
@@ -266,13 +307,15 @@ The quantum simulator uses full state vectors, which require 2ⁿ memory. Accura
 - [x] Complex state vector quantum simulator
 - [x] Hadamard, CNOT, Pauli X/Y/Z, phase gates
 - [x] For loops — foundation for hierarchical models
+- [x] Hierarchical models with indexed variables (`mean[group] ~ dist(...)`)
+- [x] `range()` built-in for numeric iteration
+- [x] Hamiltonian Monte Carlo (HMC) with leapfrog integration
+- [x] JAX autodiff backend with pure-Python numerical fallback
 - [x] Variable scoping
 - [x] Imports
 - [x] Type system with useful error messages
 - [x] VS Code syntax highlighting
 - [x] Web playground — runs in the browser
-- [ ] HMC — Hamiltonian Monte Carlo with automatic differentiation
-- [ ] Hierarchical models
 - [ ] Variational inference
 - [ ] Export to Qiskit / Cirq for real quantum hardware
 - [ ] Plot output — matplotlib histograms and trace plots
