@@ -1,0 +1,11 @@
+# HMC vs MH — biased coin
+# Same model as mcmc_moeda.aeth but using HMC.
+# Compare: HMC should achieve higher acceptance and mix faster.
+
+model CoinBias:
+    bias ~ beta(a=1, b=1)
+    flip ~ bernoulli(prob=bias)
+
+    observe flip = [1, 1, 0, 1, 1, 0, 1, 1, 1, 0]
+
+infer CoinBias using hmc(samples=2000, warmup=500, step_size=0.2, steps=10)

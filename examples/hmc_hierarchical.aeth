@@ -1,0 +1,12 @@
+# HMC on a hierarchical model
+# This is where HMC really shines over MH —
+# correlated parameters in high dimensions.
+
+model Schools:
+    global_mean ~ normal(mean=70, std=10)
+    global_std  ~ normal(mean=5, std=2)
+
+    for school in ["A", "B", "C", "D", "E"]:
+        mean[school] ~ normal(mean=global_mean, std=global_std)
+
+infer Schools using hmc(samples=2000, warmup=500, step_size=0.15, steps=15)

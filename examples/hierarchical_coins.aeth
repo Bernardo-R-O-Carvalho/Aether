@@ -1,0 +1,16 @@
+# Hierarchical model — biased coins from different factories
+# Each factory produces coins with a slightly different bias.
+# The global_bias is the "average" factory behavior.
+# We observe results and infer per-factory biases.
+
+model CoinFactories:
+    global_bias ~ beta(a=2, b=2)
+
+    for factory in ["F1", "F2", "F3"]:
+        bias[factory] ~ beta(a=global_bias * 10, b=(1 - global_bias) * 10)
+
+    observe bias["F1"] = 0.7
+    observe bias["F2"] = 0.5
+    observe bias["F3"] = 0.6
+
+infer CoinFactories using mcmc(samples=5000, warmup=1000)

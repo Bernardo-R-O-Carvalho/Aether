@@ -234,9 +234,15 @@ def tokenize(src):
 
 class ParseError(AetherError): pass
 
-# Keywords that signal the start of a new top-level block.
-# Used to detect the end of a model or for body without explicit delimiters.
-BLOCK_KEYWORDS = ("model", "infer", "quantum", "for", "import")
+# Keywords that signal the start of a new TOP-LEVEL block.
+# Used to detect the end of a model body.
+# Note: 'for' is intentionally excluded — for loops can appear INSIDE models
+# (hierarchical models). 'for' at top level is also valid but rare.
+BLOCK_KEYWORDS = ("model", "infer", "quantum", "import")
+
+# Keywords that end a for loop body (subset — for can't be nested at top level
+# but CAN appear inside a model body)
+TOP_LEVEL_KEYWORDS = ("model", "infer", "quantum", "import")
 
 class AetherParser:
     def __init__(self, tokens, src_lines=None):
@@ -352,12 +358,13 @@ class AetherParser:
         Parse: infer <ModelName> using <method>(<params>)
 
         Supported methods:
-          montecarlo(samples=N)         — rejection sampling
-          mcmc(samples=N, warmup=W, step_size=S)  — Metropolis-Hastings
-          quantum(shots=N)              — quantum circuit simulation
+          montecarlo(samples=N)                          — rejection sampling
+          mcmc(samples=N, warmup=W, step_size=S)        — Metropolis-Hastings
+          hmc(samples=N, warmup=W, step_size=S, steps=L) — Hamiltonian MC
+          quantum(shots=N)                               — quantum simulation
         """
         self.consume("ID", "infer"); name = self.consume("ID")[1]
-        method, n, warmup, step_size = "montecarlo", 1000, 500, 0.3
+        method, n, warmup, step_size, n_steps = "montecarlo", 1000, 500, 0.3, 10
         if self.match("ID", "using"):
             method = self.consume("ID")[1]
             if self.match("OP", "("):
@@ -367,18 +374,31 @@ class AetherParser:
                     if key in ("samples", "shots"): n = int(val)
                     elif key == "warmup":     warmup = int(val)
                     elif key == "step_size":  step_size = float(val)
+                    elif key == "steps":      n_steps = int(val)
                     if self.peek()[1] == ",": self.consume("OP", ",")
                 self.consume("OP", ")")
-        return ("infer", name, method, n, warmup, step_size)
+        return ("infer", name, method, n, warmup, step_size, n_steps)
 
     def parse_observe(self):
         """
         Parse: observe <name> = <expr>
+               observe <name>[<idx>] = <expr>
         expr can be a scalar or a list: observe x = [1, 0, 1, 1]
         Lists represent multiple independent observations of the same variable.
+        Indexed form: observe bias["F1"] = 0.7
         """
         line = self.line()
-        self.consume("ID", "observe"); name = self.consume("ID")[1]; self.consume("OP", "=")
+        self.consume("ID", "observe")
+        name = self.consume("ID")[1]
+        # Check for indexed observe: observe bias["F1"] = 0.7
+        if self.peek()[1] == "[":
+            self.consume("OP", "[")
+            idx = self.parse_expr()
+            self.consume("OP", "]")
+            self.consume("OP", "=")
+            expr = self.parse_expr()
+            return ("observe_indexed", name, idx, expr, line)
+        self.consume("OP", "=")
         expr = self.parse_expr()
         return ("observe", name, expr, line)
 
@@ -414,13 +434,29 @@ class AetherParser:
     def parse_assignment_or_sample(self):
         """
         Parse either:
-          <name> ~ <distribution>(...)   — probabilistic sampling
-          <name> = <expr>                — deterministic assignment
+          <name> ~ <distribution>(...)       — probabilistic sampling
+          <name> = <expr>                    — deterministic assignment
+          <name>[<idx>] ~ <distribution>(...)— indexed sampling (hierarchical)
+          <name>[<idx>] = <expr>             — indexed assignment
         The ~ operator is the core of Aether's probabilistic semantics.
         It means 'is distributed as', not 'equals'.
         """
         line = self.line()
         name = self.consume("ID")[1]
+
+        # Check for indexed variable: media[escola] ~ ...
+        if self.peek()[1] == "[":
+            self.consume("OP", "[")
+            idx = self.parse_expr()
+            self.consume("OP", "]")
+            if self.peek()[1] == "~":
+                self.consume("OP", "~")
+                return ("sample_indexed", name, idx, self.parse_distribution(), line)
+            elif self.peek()[1] == "=":
+                self.consume("OP", "=")
+                return ("assign_indexed", name, idx, self.parse_expr(), line)
+            raise ParseError(f"\n  ✗  Parse error line {line}: expected '~' or '=' after '{name}[...]'")
+
         if self.peek()[1] == "~":
             self.consume("OP", "~"); return ("sample", name, self.parse_distribution(), line)
         elif self.peek()[1] == "=":
@@ -459,7 +495,8 @@ class AetherParser:
 
     def parse_primary(self):
         """
-        Parse a primary expression: literal, variable reference, or sub-expression.
+        Parse a primary expression: literal, variable reference, indexed variable,
+        function call, or sub-expression.
         Unary minus is handled here by wrapping as (* -1 <expr>).
         """
         tok = self.peek()
@@ -470,7 +507,24 @@ class AetherParser:
             return ("binop", "*", ("num", -1), inner)
         if tok[0] == "NUM":    self.consume(); return ("num", tok[1])
         if tok[0] == "STRING": self.consume(); return ("str", tok[1])
-        if tok[0] == "ID":     self.consume(); return ("var", tok[1], tok[2])
+        if tok[0] == "ID":
+            name = self.consume()
+            # Check for function call: range(...), len(...)
+            if self.peek()[1] == "(":
+                self.consume("OP", "(")
+                args = []
+                while self.peek()[1] != ")":
+                    args.append(self.parse_expr())
+                    if self.peek()[1] == ",": self.consume("OP", ",")
+                self.consume("OP", ")")
+                return ("call", name[1], args, name[2])
+            # Check for indexed variable: media[escola]
+            if self.peek()[1] == "[":
+                self.consume("OP", "[")
+                idx = self.parse_expr()
+                self.consume("OP", "]")
+                return ("index", name[1], idx, name[2])
+            return ("var", name[1], name[2])
         if tok[1] == "(":
             self.consume("OP", "("); e = self.parse_expr(); self.consume("OP", ")"); return e
         if tok[1] == "[":
@@ -556,6 +610,31 @@ class AetherRuntime:
                 return scope.get(name)
             except AetherError:
                 raise AetherError(f"\n  ✗  Name error line {line}: '{name}' is not defined")
+        if k == "index":
+            # Indexed variable: media[escola] -> looks up "media[A]" in scope
+            # Enables hierarchical models where each group has its own variable.
+            name, idx_node, line = node[1], node[2], node[3]
+            idx = self.eval_expr(idx_node, scope)
+            key = f"{name}[{idx}]"
+            try:
+                return scope.get(key)
+            except AetherError:
+                raise AetherError(f"\n  ✗  Name error line {line}: '{key}' is not defined")
+        if k == "call":
+            # Built-in function calls: range(n), len(list)
+            fname, args, line = node[1], node[2], node[3]
+            evaluated = [self.eval_expr(a, scope) for a in args]
+            if fname == "range":
+                if len(evaluated) == 1:
+                    return list(range(int(evaluated[0])))
+                elif len(evaluated) == 2:
+                    return list(range(int(evaluated[0]), int(evaluated[1])))
+                raise AetherError(f"\n  ✗  range() takes 1 or 2 arguments, got {len(evaluated)}")
+            if fname == "len":
+                if len(evaluated) != 1:
+                    raise AetherError(f"\n  ✗  len() takes 1 argument")
+                return len(evaluated[0])
+            raise AetherError(f"\n  ✗  Unknown function '{fname}' line {line}")
         if k == "list":   return [self.eval_expr(i, scope) for i in node[1]]
         if k == "binop":
             _, op, l, r = node
@@ -590,11 +669,31 @@ class AetherRuntime:
             check_type(name, val, atype, line)
             scope.set(name, val, atype)
 
+        elif k == "sample_indexed":
+            # media[escola] ~ dist(...) — indexed variable sampling.
+            # Stores as "media[A]", "media[B]", etc. in scope.
+            # This is the foundation of hierarchical models.
+            _, name, idx_node, dist_node, line = stmt
+            idx = self.eval_expr(idx_node, scope)
+            key = f"{name}[{idx}]"
+            val = self.eval_expr(dist_node, scope)
+            atype = DIST_TYPES.get(dist_node[1], AetherType.ANY)
+            check_type(key, val, atype, line)
+            scope.set(key, val, atype)
+
         elif k == "assign":
             # x = expr — deterministic assignment, no distribution.
             _, name, expr, line = stmt
             val = self.eval_expr(expr, scope)
             scope.set(name, val)
+
+        elif k == "assign_indexed":
+            # media[escola] = expr — indexed deterministic assignment.
+            _, name, idx_node, expr, line = stmt
+            idx = self.eval_expr(idx_node, scope)
+            key = f"{name}[{idx}]"
+            val = self.eval_expr(expr, scope)
+            scope.set(key, val)
 
         elif k == "observe":
             # observe x = val or observe x = [v1, v2, ...]
@@ -604,10 +703,17 @@ class AetherRuntime:
             _, name, expr, line = stmt
             val = self.eval_expr(expr, scope)
             if isinstance(val, list):
-                # Store under a private key; rejection sampling reads this
                 scope.set(f"__obs_{name}", val)
             else:
                 scope.set(name, val)
+
+        elif k == "observe_indexed":
+            # observe bias["F1"] = 0.7 — condition on a specific group's value
+            _, name, idx_node, expr, line = stmt
+            idx = self.eval_expr(idx_node, scope)
+            key = f"{name}[{idx}]"
+            val = self.eval_expr(expr, scope)
+            scope.set(key, val)
 
         elif k == "print":
             val = self.eval_expr(stmt[1], scope)
@@ -625,8 +731,9 @@ class AetherRuntime:
 
         elif k == "for":
             # Iterate over a list, running the body in a child scope per item.
-            # After each iteration, non-loop variables are propagated back up.
-            # This is the foundation for hierarchical models.
+            # Child scope inherits all parent variables (including global_mean,
+            # population_mean, etc.) so hierarchical models work correctly.
+            # After each iteration, indexed variables propagate back up.
             _, var, iterable_node, body, line = stmt
             iterable = self.eval_expr(iterable_node, scope)
             if not isinstance(iterable, list):
@@ -636,7 +743,7 @@ class AetherRuntime:
                 loop_scope.set(var, item)
                 for s in body:
                     self.exec_stmt(s, loop_scope)
-                # Propagate non-loop vars back to parent scope
+                # Propagate ALL new variables (including indexed ones) back up
                 for vname, vval in loop_scope.vars.items():
                     if vname != var:
                         scope.set(vname, vval)
@@ -659,8 +766,9 @@ class AetherRuntime:
 
         elif k == "infer":
             # Route to the appropriate inference engine based on method.
-            _, name, method, n, warmup, step_size = stmt
+            _, name, method, n, warmup, step_size, n_steps = stmt
             if method == "quantum": self.run_quantum(name, n)
+            elif method == "hmc":   self.run_hmc(name, n, warmup, step_size, n_steps)
             elif method == "mcmc":  self.run_mcmc(name, n, warmup, step_size)
             else:                   self.run_classical(name, n)
 
@@ -753,14 +861,25 @@ class AetherRuntime:
             raise AetherError(f"\n  ✗  Model '{name}' is not defined")
         from mcmc import run_mcmc, print_mcmc_results
         body = self.models[name]
-        # Bridge: mcmc.py works with plain dicts, interpreter uses Scope objects.
-        # This closure converts between the two without coupling the modules.
         def eval_fn(node, env):
             s = Scope(parent=self.global_scope)
             s.vars.update(env)
             return self.eval_expr(node, s)
         result = run_mcmc(body, eval_fn, samples=samples, warmup=warmup, step_size=step_size)
         print_mcmc_results(name, result, warmup)
+
+    def run_hmc(self, name, samples, warmup, step_size, n_steps):
+        if name not in self.models:
+            raise AetherError(f"\n  ✗  Model '{name}' is not defined")
+        from hmc import run_hmc, print_hmc_results
+        body = self.models[name]
+        def eval_fn(node, env):
+            s = Scope(parent=self.global_scope)
+            s.vars.update(env)
+            return self.eval_expr(node, s)
+        result = run_hmc(body, eval_fn, samples=samples, warmup=warmup,
+                        step_size=step_size, n_steps=n_steps)
+        print_hmc_results(name, result, warmup)
 
     # ── Quantum ───────────────────────────────────────────────────────────
     #

@@ -1,0 +1,13 @@
+# Hierarchical model — schools
+# Each school has its own mean, drawn from a global distribution.
+# This is the classic "partial pooling" model in Bayesian statistics.
+# Individual schools inform each other through the global prior.
+
+model Schools:
+    global_mean ~ normal(mean=70, std=10)
+    global_std  ~ normal(mean=5, std=2)
+
+    for school in ["A", "B", "C", "D", "E"]:
+        mean[school] ~ normal(mean=global_mean, std=global_std)
+
+infer Schools using mcmc(samples=4000, warmup=1000)

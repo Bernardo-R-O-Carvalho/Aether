@@ -203,30 +203,43 @@ def execute_model(body, env_in, eval_expr_fn):
             name, dist_node = stmt[1], stmt[2]
             dist_name, kwargs_nodes = dist_node[1], dist_node[2]
             kwargs = {k: eval_expr_fn(v, env) for k, v in kwargs_nodes.items()}
-
-            # If the variable already has a value (from the current state),
-            # score it under the prior. Otherwise sample from the prior.
             val = env.get(name)
             if val is None:
                 fn = SAMPLERS.get(dist_name)
                 if not fn: raise RuntimeError(f"Unknown distribution: '{dist_name}'")
                 val = fn(**kwargs)
                 env[name] = val
-
             lp_fn = LOG_PROB.get(dist_name)
             if not lp_fn: raise RuntimeError(f"No log_prob for '{dist_name}'")
-            log_joint += lp_fn(val, **kwargs)  # add log prior
+            log_joint += lp_fn(val, **kwargs)
+
+        elif kind == "sample_indexed":
+            # media[escola] ~ normal(...) — indexed hierarchical variable
+            name, idx_node, dist_node = stmt[1], stmt[2], stmt[3]
+            idx = eval_expr_fn(idx_node, env)
+            key = f"{name}[{idx}]"
+            dist_name, kwargs_nodes = dist_node[1], dist_node[2]
+            kwargs = {k: eval_expr_fn(v, env) for k, v in kwargs_nodes.items()}
+            val = env.get(key)
+            if val is None:
+                fn = SAMPLERS.get(dist_name)
+                if not fn: raise RuntimeError(f"Unknown distribution: '{dist_name}'")
+                val = fn(**kwargs)
+                env[key] = val
+            lp_fn = LOG_PROB.get(dist_name)
+            if not lp_fn: raise RuntimeError(f"No log_prob for '{dist_name}'")
+            log_joint += lp_fn(val, **kwargs)
 
         elif kind == "assign":
-            # Deterministic — no probability contribution.
             name, expr = stmt[1], stmt[2]
             env[name] = eval_expr_fn(expr, env)
 
+        elif kind == "assign_indexed":
+            name, idx_node, expr = stmt[1], stmt[2], stmt[3]
+            idx = eval_expr_fn(idx_node, env)
+            env[f"{name}[{idx}]"] = eval_expr_fn(expr, env)
+
         elif kind == "observe":
-            # Score observed value(s) under the likelihood.
-            # For multiple observations, score each one independently
-            # (assuming i.i.d. — each observation contributes additively
-            # to the log joint).
             name, expr = stmt[1], stmt[2]
             observed_val = eval_expr_fn(expr, env)
             observations = observed_val if isinstance(observed_val, list) else [observed_val]
@@ -238,17 +251,55 @@ def execute_model(body, env_in, eval_expr_fn):
             lp_fn = LOG_PROB.get(dist_name)
             if not lp_fn: raise RuntimeError(f"No log_prob for '{dist_name}'")
             for obs in observations:
-                log_joint += lp_fn(obs, **kwargs)  # add log likelihood
+                log_joint += lp_fn(obs, **kwargs)
             env[name] = observations[0]
+
+        elif kind == "observe_indexed":
+            # observe bias["F1"] = 0.7
+            name, idx_node, expr = stmt[1], stmt[2], stmt[3]
+            idx = eval_expr_fn(idx_node, env)
+            key = f"{name}[{idx}]"
+            observed_val = eval_expr_fn(expr, env)
+            dist_node = _find_indexed_dist(body, name)
+            if dist_node is None:
+                env[key] = observed_val; continue
+            dist_name, kwargs_nodes = dist_node[1], dist_node[2]
+            kwargs = {k: eval_expr_fn(v, env) for k, v in kwargs_nodes.items()}
+            lp_fn = LOG_PROB.get(dist_name)
+            if not lp_fn: raise RuntimeError(f"No log_prob for '{dist_name}'")
+            log_joint += lp_fn(observed_val, **kwargs)
+            env[key] = observed_val
+
+        elif kind == "for":
+            # Execute for loop — propagates indexed vars into env
+            _, var, iterable_node, loop_body, line = stmt
+            iterable = eval_expr_fn(iterable_node, env)
+            if not isinstance(iterable, list): continue
+            for item in iterable:
+                loop_env = dict(env)
+                loop_env[var] = item
+                _, lp = execute_model(loop_body, loop_env, eval_expr_fn)
+                log_joint += lp
+                for k2, v in loop_env.items():
+                    if k2 != var:
+                        env[k2] = v
 
     return env, log_joint
 
 
 def _find_dist(body, var_name):
-    """Find the distribution node for a variable by scanning the model body."""
+    """Find the distribution node for a plain variable."""
     for stmt in body:
         if stmt[0] == "sample" and stmt[1] == var_name:
             return stmt[2]
+    return None
+
+
+def _find_indexed_dist(body, var_name):
+    """Find the distribution node for an indexed variable (any index)."""
+    for stmt in body:
+        if stmt[0] == "sample_indexed" and stmt[1] == var_name:
+            return stmt[3]  # dist_node is at index 3 for sample_indexed
     return None
 
 
@@ -311,56 +362,108 @@ def propose(name, current_val, dist_name, kwargs, step_size=0.3):
 #  Metropolis-Hastings sampler
 # ─────────────────────────────────────────────
 
-def run_mcmc(body, eval_expr_fn, samples=2000, warmup=500, step_size=0.3):
+def _collect_latent_vars(body, eval_expr_fn, env):
     """
-    Run Metropolis-Hastings MCMC on an Aether model.
-
-    The algorithm guarantees convergence to the true posterior distribution
-    under mild conditions (the chain must be able to reach any state from
-    any other state in finite steps — satisfied here by Gaussian proposals).
-
-    Args:
-        body:         model body (list of AST nodes from the parser)
-        eval_expr_fn: expression evaluator from the interpreter
-        samples:      number of post-warmup samples to collect
-        warmup:       number of initial samples to discard
-        step_size:    proposal step size (tune for 20-70% acceptance rate)
-
-    Returns:
-        dict with keys: samples, accepted, total, latent_vars
+    Recursively collect all latent variable names from a model body,
+    including those inside for loops (hierarchical variables like media[A]).
+    Returns list of (key, dist_name, kwargs_nodes) tuples.
     """
+    observed_keys = set()
+    latent = []
 
-    # Identify latent variables: those that are sampled (~) but not observed.
-    # Observed variables are conditioned on — they're not inferred.
-    observed_vars = {stmt[1] for stmt in body if stmt[0] == "observe"}
-    latent_vars = []
-    dist_map = {}   # var_name -> (dist_name, kwargs_nodes)
+    # First pass: collect observed variable keys
+    for stmt in body:
+        if stmt[0] == "observe":
+            observed_keys.add(stmt[1])
+        elif stmt[0] == "observe_indexed":
+            idx = eval_expr_fn(stmt[2], env)
+            observed_keys.add(f"{stmt[1]}[{idx}]")
+        elif stmt[0] == "for":
+            _, var, iterable_node, loop_body, _ = stmt
+            iterable = eval_expr_fn(iterable_node, env)
+            if isinstance(iterable, list):
+                for item in iterable:
+                    loop_env = dict(env); loop_env[var] = item
+                    for s in loop_body:
+                        if s[0] == "observe_indexed":
+                            idx = eval_expr_fn(s[2], loop_env)
+                            observed_keys.add(f"{s[1]}[{idx}]")
 
+    # Second pass: collect latent variables
     for stmt in body:
         if stmt[0] == "sample":
-            name = stmt[1]
-            dist_node = stmt[2]
-            dist_name, kwargs_nodes = dist_node[1], dist_node[2]
-            dist_map[name] = (dist_name, kwargs_nodes)
-            if name not in observed_vars:
-                latent_vars.append(name)
+            name, dist_node = stmt[1], stmt[2]
+            if name not in observed_keys:
+                latent.append((name, dist_node[1], dist_node[2]))
+        elif stmt[0] == "for":
+            _, var, iterable_node, loop_body, _ = stmt
+            iterable = eval_expr_fn(iterable_node, env)
+            if isinstance(iterable, list):
+                for item in iterable:
+                    loop_env = dict(env); loop_env[var] = item
+                    for s in loop_body:
+                        if s[0] == "sample_indexed":
+                            idx = eval_expr_fn(s[2], loop_env)
+                            key = f"{s[1]}[{idx}]"
+                            dist_node = s[3]
+                            if key not in observed_keys:
+                                latent.append((key, dist_node[1], dist_node[2]))
 
-    if not latent_vars:
-        print("  ✗  No latent variables to infer.")
-        return {}
+    return latent, observed_keys
 
-    # Initialize the chain by sampling all variables from their priors.
-    # The chain will move toward the posterior during warmup.
-    current_env = {}
+
+def _init_env(body, eval_expr_fn):
+    """
+    Initialize the environment by sampling all variables from their priors,
+    including hierarchical variables inside for loops.
+    """
+    env = {}
     for stmt in body:
         if stmt[0] == "sample":
             name, dist_node = stmt[1], stmt[2]
             dist_name, kwargs_nodes = dist_node[1], dist_node[2]
-            kwargs = {k: eval_expr_fn(v, current_env) for k, v in kwargs_nodes.items()}
+            kwargs = {k: eval_expr_fn(v, env) for k, v in kwargs_nodes.items()}
             fn = SAMPLERS.get(dist_name)
-            current_env[name] = fn(**kwargs) if fn else 0.0
+            env[name] = fn(**kwargs) if fn else 0.0
         elif stmt[0] == "assign":
-            current_env[stmt[1]] = eval_expr_fn(stmt[2], current_env)
+            env[stmt[1]] = eval_expr_fn(stmt[2], env)
+        elif stmt[0] == "for":
+            _, var, iterable_node, loop_body, _ = stmt
+            iterable = eval_expr_fn(iterable_node, env)
+            if isinstance(iterable, list):
+                for item in iterable:
+                    loop_env = dict(env); loop_env[var] = item
+                    for s in loop_body:
+                        if s[0] == "sample_indexed":
+                            idx = eval_expr_fn(s[2], loop_env)
+                            key = f"{s[1]}[{idx}]"
+                            dist_name, kwargs_nodes = s[3][1], s[3][2]
+                            kwargs = {k: eval_expr_fn(v, loop_env) for k, v in kwargs_nodes.items()}
+                            fn = SAMPLERS.get(dist_name)
+                            env[key] = fn(**kwargs) if fn else 0.0
+                        elif s[0] == "assign_indexed":
+                            idx = eval_expr_fn(s[2], loop_env)
+                            env[f"{s[1]}[{idx}]"] = eval_expr_fn(s[3], loop_env)
+    return env
+
+
+def run_mcmc(body, eval_expr_fn, samples=2000, warmup=500, step_size=0.3):
+    """
+    Run Metropolis-Hastings MCMC on an Aether model.
+    Supports hierarchical models with indexed variables and for loops.
+    """
+    # Initialize env from priors first (needed to evaluate iterables)
+    current_env = _init_env(body, eval_expr_fn)
+
+    # Collect all latent variables including hierarchical ones
+    latent_info, observed_keys = _collect_latent_vars(body, eval_expr_fn, current_env)
+
+    if not latent_info:
+        print("  ✗  No latent variables to infer.")
+        return {}
+
+    latent_vars = [key for key, _, _ in latent_info]
+    dist_map = {key: (dname, knodes) for key, dname, knodes in latent_info}
 
     # Score the initial state
     _, current_log_prob = execute_model(body, current_env, eval_expr_fn)
@@ -371,13 +474,14 @@ def run_mcmc(body, eval_expr_fn, samples=2000, warmup=500, step_size=0.3):
     total_steps = samples + warmup
 
     for step in range(total_steps):
-        # Propose a new state by perturbing each latent variable
         proposed_env = dict(current_env)
-        for name in latent_vars:
-            dist_name, kwargs_nodes = dist_map[name]
-            kwargs = {k: eval_expr_fn(v, current_env) for k, v in kwargs_nodes.items()}
-            proposed_env[name] = propose(
-                name, current_env[name], dist_name, kwargs, step_size
+        for key in latent_vars:
+            dist_name, kwargs_nodes = dist_map[key]
+            # Build a temporary env with the key available for kwargs eval
+            tmp_env = dict(current_env)
+            kwargs = {k: eval_expr_fn(v, tmp_env) for k, v in kwargs_nodes.items()}
+            proposed_env[key] = propose(
+                key, current_env[key], dist_name, kwargs, step_size
             )
 
         # Score the proposed state
