@@ -226,6 +226,8 @@ python src/interpreter.py examples/hmc_coin.aeth
 
 No pip install. No virtual environment. No dependencies. Pure Python 3.8+.
 
+---
+
 ## Try it online
 
 No install needed — runs entirely in the browser:
@@ -233,8 +235,6 @@ No install needed — runs entirely in the browser:
 **[⟁ Open Aether Playground](https://bernardo-r-o-carvalho.github.io/Aether/playground.html)**
 
 Write `.aeth` directly in the browser. Classical inference, HMC, hierarchical models, and quantum circuits — all running locally with zero dependencies.
-
----
 
 ---
 
