@@ -20,16 +20,15 @@ header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;ba
 .logo{display:flex;align-items:center;gap:12px}
 .logo-glyph{font-family:var(--serif);font-size:24px;color:var(--accent2);font-style:italic;font-weight:300;text-shadow:0 0 20px rgba(162,155,254,0.4)}
 .logo-name{font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:-0.03em}
-.logo-ver{font-size:10px;color:var(--muted);background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:2px 6px;letter-spacing:0.05em}
+.logo-ver{font-size:10px;color:var(--muted);background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:2px 6px}
 .header-right{display:flex;align-items:center;gap:10px}
 .kbd-hint{font-size:11px;color:var(--muted)}
 .kbd{background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:10px;color:var(--muted)}
-.btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:7px 16px;border-radius:5px;border:none;cursor:pointer;transition:all 0.15s;letter-spacing:0.03em}
+.btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:7px 16px;border-radius:5px;border:none;cursor:pointer;transition:all 0.15s}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border2)}
 .btn-ghost:hover{color:var(--text);background:var(--surface2)}
 .btn-run{background:var(--accent);color:#fff;display:flex;align-items:center;gap:7px;box-shadow:0 0 20px rgba(108,92,231,0.3)}
 .btn-run:hover{background:var(--accent2);transform:translateY(-1px)}
-.btn-run:active{transform:translateY(0)}
 .btn-run.loading{background:var(--border2);color:var(--muted);cursor:not-allowed;box-shadow:none}
 .workspace{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 54px)}
 .editor-panel{display:flex;flex-direction:column;border-right:1px solid var(--border)}
@@ -38,59 +37,68 @@ header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;ba
 .file-ext{font-size:11px;color:var(--accent2)}
 .examples-bar{display:flex;gap:6px;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface);overflow-x:auto;flex-shrink:0;scrollbar-width:none}
 .examples-bar::-webkit-scrollbar{display:none}
-.chip{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:3px;white-space:nowrap;cursor:pointer;border:1px solid var(--border2);color:var(--muted);background:transparent;transition:all 0.12s;letter-spacing:0.02em}
+.chip{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:3px;white-space:nowrap;cursor:pointer;border:1px solid var(--border2);color:var(--muted);background:transparent;transition:all 0.12s}
 .chip:hover{color:var(--text);border-color:var(--accent2)}
 .chip.active{color:var(--accent2);border-color:var(--accent);background:rgba(108,92,231,0.08)}
 .chip.quantum{color:var(--teal)}
 .chip.quantum:hover,.chip.quantum.active{border-color:var(--teal);background:rgba(0,206,201,0.07)}
 .chip.combined{color:var(--amber)}
 .chip.combined:hover,.chip.combined.active{border-color:var(--amber);background:rgba(253,203,110,0.07)}
+.chip.hier{color:#c084fc}
+.chip.hier:hover,.chip.hier.active{border-color:#c084fc;background:rgba(192,132,252,0.07)}
 .editor-wrap{flex:1;overflow:hidden}
-#editor{width:100%;height:100%;background:transparent;border:none;outline:none;resize:none;font-family:var(--mono);font-size:13.5px;line-height:1.75;color:var(--text);padding:20px 22px;caret-color:var(--accent2);tab-size:4;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+#editor{width:100%;height:100%;background:transparent;border:none;outline:none;resize:none;font-family:var(--mono);font-size:13px;line-height:1.75;color:var(--text);padding:20px 22px;caret-color:var(--accent2);tab-size:4;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
 .output-panel{display:flex;flex-direction:column;background:var(--bg)}
-.output-body{flex:1;overflow-y:auto;padding:20px 22px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.output-body{flex:1;overflow-y:auto;padding:20px 22px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;font-size:12px;line-height:1.7}
 .placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;color:var(--muted)}
 .placeholder-glyph{font-family:var(--serif);font-size:56px;font-style:italic;font-weight:300;color:var(--accent2);opacity:0.12}
 .placeholder-text{font-size:12px;letter-spacing:0.06em;opacity:0.5}
 .out-section{margin-bottom:24px}
 .out-header{color:var(--accent2);font-size:13px;font-weight:500;margin-bottom:4px}
-.out-divider{color:var(--border2);font-size:12px;margin-bottom:10px}
-.out-accepted{font-size:12px;margin-bottom:14px}
-.out-error{color:var(--coral);font-size:13px;line-height:1.7}
-.var-block{margin-bottom:20px}
-.var-name{color:var(--amber);font-size:12px;margin-bottom:8px;letter-spacing:0.04em}
-.var-stats{color:var(--muted);font-size:11px;margin-top:6px;line-height:1.8}
+.out-divider{color:var(--border2);font-size:12px;margin-bottom:8px}
+.out-meta{color:var(--muted);font-size:11px;margin-bottom:12px;line-height:1.8}
+.out-meta .ok{color:var(--green)}
+.out-meta .warn{color:var(--amber)}
+.out-meta .err{color:var(--coral)}
+.out-error{color:var(--coral);font-size:13px;line-height:1.7;white-space:pre-wrap}
+.var-block{margin-bottom:18px}
+.var-name{color:var(--amber);font-size:11px;margin-bottom:6px;letter-spacing:0.04em}
+.hist-row{display:flex;align-items:center;gap:8px;margin-bottom:2px;font-size:10px}
+.hist-label{color:var(--muted);min-width:58px;text-align:right}
+.hist-track{flex:1;height:12px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.hist-fill{height:100%;border-radius:2px}
+.hist-fill-c{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.hist-fill-q{background:linear-gradient(90deg,var(--teal),rgba(0,206,201,0.5))}
+.hist-pct{color:var(--muted);min-width:36px;text-align:right;font-size:10px}
+.var-stats{color:var(--muted);font-size:10px;margin-top:5px;line-height:1.8}
 .var-stats span{color:var(--text)}
 .rhat-ok{color:var(--green)}
 .rhat-warn{color:var(--coral)}
-.hist-row{display:flex;align-items:center;gap:8px;margin-bottom:3px;font-size:11px}
-.hist-label{color:var(--muted);min-width:60px;text-align:right}
-.hist-track{flex:1;height:14px;background:var(--surface2);border-radius:2px;overflow:hidden}
-.hist-fill-c{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width 0.5s}
-.hist-fill-q{height:100%;background:linear-gradient(90deg,var(--teal),rgba(0,206,201,0.5));border-radius:2px}
-.hist-pct{color:var(--muted);min-width:40px;text-align:right;font-size:10px}
+.trace-block{margin:8px 0 14px}
+.trace-label{color:var(--muted);font-size:10px;margin-bottom:4px}
+.trace-canvas{position:relative;height:60px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.trace-dot{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--accent2);opacity:0.7}
 .qubit-block{margin-bottom:10px}
-.qubit-row{display:flex;align-items:center;gap:10px;font-size:12px}
+.qubit-row{display:flex;align-items:center;gap:10px;font-size:11px}
 .qubit-name{color:var(--amber);min-width:24px}
 .qubit-zero{color:var(--muted);min-width:52px;text-align:right}
 .qubit-track{flex:1;height:10px;border-radius:3px;overflow:hidden;background:var(--surface2);position:relative}
 .qubit-seg-z{position:absolute;left:0;top:0;height:100%;background:var(--border2);border-radius:3px 0 0 3px}
 .qubit-seg-o{position:absolute;right:0;top:0;height:100%;background:var(--teal);border-radius:0 3px 3px 0;box-shadow:0 0 8px rgba(0,206,201,0.3)}
 .qubit-one{color:var(--teal);min-width:52px}
-.outcomes-label{color:var(--muted);font-size:11px;margin:12px 0 8px}
-.outcome-row{display:flex;align-items:center;gap:10px;margin-bottom:5px}
-.outcome-key{color:var(--amber);font-size:11px;min-width:120px}
+.outcomes-label{color:var(--muted);font-size:10px;margin:10px 0 6px}
+.outcome-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.outcome-key{color:var(--amber);font-size:10px;min-width:110px}
 .outcome-bar{height:3px;background:var(--teal);border-radius:2px;opacity:0.6}
-.outcome-val{color:var(--muted);font-size:11px}
+.outcome-val{color:var(--muted);font-size:10px}
 .outcome-val strong{color:var(--text)}
-.status-bar{padding:6px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:10px;color:var(--muted);background:var(--surface);flex-shrink:0;letter-spacing:0.04em}
+.out-mode-divider{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--muted);font-size:10px;letter-spacing:0.1em}
+.out-mode-divider::before,.out-mode-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 .dot{width:5px;height:5px;border-radius:50%;background:var(--border2)}
 .dot.ok{background:var(--green);box-shadow:0 0 5px var(--green)}
 .dot.err{background:var(--coral)}
 .dot.run{background:var(--amber);animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-.out-mode-divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted);font-size:10px;letter-spacing:0.1em}
-.out-mode-divider::before,.out-mode-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 </style>
 </head>
 <body>
@@ -98,13 +106,13 @@ header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;ba
   <div class="logo">
     <span class="logo-glyph">⟁</span>
     <span class="logo-name">Aether</span>
-    <span class="logo-ver">v0.3</span>
+    <span class="logo-ver">v0.4</span>
   </div>
   <div class="header-right">
     <span class="kbd-hint"><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to run</span>
     <button class="btn btn-ghost" onclick="clearOutput()">Clear</button>
     <button class="btn btn-run" id="runBtn" onclick="runCode()">
-      <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor"><path d="M2 1.5l8 4.5-8 4.5V1.5z"/></svg>
+      <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><path d="M2 1.5l8 4.5-8 4.5V1.5z"/></svg>
       Run
     </button>
   </div>
@@ -132,114 +140,388 @@ header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;ba
   </div>
 </div>
 <script>
-const EXAMPLES=[
-  {label:"coin_bias.aeth",type:"classical",code:`# Bayesian coin bias\n# Observe 7 heads in 10 flips. What is the true bias?\n\nmodel CoinBias:\n    bias ~ beta(a=1, b=1)\n    flip ~ bernoulli(prob=bias)\n\n    observe flip = [1, 1, 0, 1, 1, 0, 1, 1, 1, 0]\n\ninfer CoinBias using mcmc(samples=5000, warmup=1000)`},
-  {label:"rain.aeth",type:"classical",code:`# Rain forecast\n# Infer rain probability given high humidity\n\nmodel RainForecast:\n    humidity ~ beta(a=2, b=3)\n    wind     ~ normal(mean=15, std=5)\n    rain     ~ bernoulli(prob=humidity)\n\n    observe humidity = 0.82\n\ninfer RainForecast using mcmc(samples=5000, warmup=1000)`},
-  {label:"diagnosis.aeth",type:"classical",code:`# Medical diagnosis — Bayes theorem\n# Disease is rare (1%). Test is 95% sensitive.\n# Test came back positive. What is the real risk?\n\nmodel Diagnosis:\n    disease ~ bernoulli(prob=0.01)\n    test    ~ bernoulli(prob=0.95)\n\n    observe test = 1\n\ninfer Diagnosis using mcmc(samples=8000, warmup=2000)`},
-  {label:"bell_pair.aeth",type:"quantum",code:`# Bell pair — quantum entanglement\n# Two qubits entangled by Hadamard + CNOT.\n# Always collapse together: 00 or 11. Never mixed.\n\nquantum circuit BellPair:\n    qubit q0\n    qubit q1\n\n    gate hadamard(target=q0)\n    gate cnot(control=q0, target=q1)\n\n    measure q0\n    measure q1\n\ninfer BellPair using quantum(shots=2048)`},
-  {label:"interference.aeth",type:"quantum",code:`# Quantum interference\n# Hadamard twice cancels itself.\n# The qubit always returns to |0> — 100% of the time.\n\nquantum circuit Interference:\n    qubit q\n\n    gate hadamard(target=q)\n    gate hadamard(target=q)\n\n    measure q\n\ninfer Interference using quantum(shots=1024)`},
+// ── Examples ─────────────────────────────────────────────────
+const EXAMPLES = [
+  {label:"coin_bias.aeth",type:"classical",code:`# Bayesian coin bias\n# Observe 7 heads in 10 flips — what is the true bias?\n\nmodel CoinBias:\n    bias ~ beta(a=1, b=1)\n    flip ~ bernoulli(prob=bias)\n\n    observe flip = [1, 1, 0, 1, 1, 0, 1, 1, 1, 0]\n\ninfer CoinBias using mcmc(samples=3000, warmup=500)`},
+  {label:"rain.aeth",type:"classical",code:`# Rain forecast\n# Infer rain probability given high humidity\n\nmodel RainForecast:\n    humidity ~ beta(a=2, b=3)\n    wind     ~ normal(mean=15, std=5)\n    rain     ~ bernoulli(prob=humidity)\n\n    observe humidity = 0.82\n\ninfer RainForecast using mcmc(samples=3000, warmup=500)`},
+  {label:"diagnosis.aeth",type:"classical",code:`# Medical diagnosis — Bayes theorem\n# Disease rare (1%), test 95% sensitive.\n# Test positive — what is the real risk?\n\nmodel Diagnosis:\n    disease ~ bernoulli(prob=0.01)\n    test    ~ bernoulli(prob=0.95)\n\n    observe test = 1\n\ninfer Diagnosis using mcmc(samples=5000, warmup=1000)`},
+  {label:"schools.aeth",type:"hier",code:`# Hierarchical model — partial pooling\n# Each school has its own mean, drawn from a global prior.\n# Schools inform each other through shared parameters.\n\nmodel Schools:\n    global_mean ~ normal(mean=70, std=10)\n    global_std  ~ normal(mean=5, std=2)\n\n    for school in ["A", "B", "C"]:\n        mean[school] ~ normal(mean=global_mean, std=global_std)\n\ninfer Schools using mcmc(samples=2000, warmup=500)`},
+  {label:"hmc_coin.aeth",type:"hier",code:`# Hamiltonian Monte Carlo\n# Same model as coin_bias but using HMC.\n# Uses gradient information — mixes faster than MH.\n\nmodel CoinBias:\n    bias ~ beta(a=1, b=1)\n    flip ~ bernoulli(prob=bias)\n\n    observe flip = [1, 1, 0, 1, 1, 0, 1, 1, 1, 0]\n\ninfer CoinBias using hmc(samples=2000, warmup=500, step_size=0.5, steps=5)`},
+  {label:"bell_pair.aeth",type:"quantum",code:`# Bell pair — quantum entanglement\n# Always 00 or 11. Never mixed.\n\nquantum circuit BellPair:\n    qubit q0\n    qubit q1\n\n    gate hadamard(target=q0)\n    gate cnot(control=q0, target=q1)\n\n    measure q0\n    measure q1\n\ninfer BellPair using quantum(shots=2048)`},
   {label:"ghz.aeth",type:"quantum",code:`# GHZ state — three entangled qubits\n# Always 000 or 111. Never mixed.\n\nquantum circuit GHZ:\n    qubit q0\n    qubit q1\n    qubit q2\n\n    gate hadamard(target=q0)\n    gate cnot(control=q0, target=q1)\n    gate cnot(control=q0, target=q2)\n\n    measure q0\n    measure q1\n    measure q2\n\ninfer GHZ using quantum(shots=2048)`},
-  {label:"classical_and_quantum.aeth",type:"combined",code:`# The same question. Two paradigms. One file.\n\n# Classical: Bayesian inference\n# Observe 7 heads in 10 flips.\n\nmodel CoinBias:\n    bias ~ beta(a=1, b=1)\n    flip ~ bernoulli(prob=bias)\n\n    observe flip = [1, 1, 0, 1, 1, 0, 1, 1, 1, 0]\n\ninfer CoinBias using mcmc(samples=5000, warmup=1000)\n\n# Quantum: superposition and measurement\n# The same coin as a qubit in superposition.\n\nquantum circuit QuantumCoin:\n    qubit q\n\n    gate hadamard(target=q)\n\n    measure q\n\ninfer QuantumCoin using quantum(shots=2048)\n\n# The classical model learns from evidence.\n# The quantum model samples from pure uncertainty.\n# Same syntax. Same file. Different physics.`},
+  {label:"classical_and_quantum.aeth",type:"combined",code:`# The same question. Two paradigms. One file.\n\nmodel CoinBias:\n    bias ~ beta(a=1, b=1)\n    flip ~ bernoulli(prob=bias)\n    observe flip = [1, 1, 0, 1, 1, 0, 1, 1, 1, 0]\n\ninfer CoinBias using mcmc(samples=3000, warmup=500)\n\nquantum circuit QuantumCoin:\n    qubit q\n    gate hadamard(target=q)\n    measure q\n\ninfer QuantumCoin using quantum(shots=2048)\n\n# Classical learns from evidence.\n# Quantum samples from pure uncertainty.\n# Same syntax. Same file. Different physics.`},
 ];
 
-const bar=document.getElementById('exBar');
-EXAMPLES.forEach((ex,i)=>{
-  const c=document.createElement('button');
-  c.className='chip'+(ex.type!=='classical'?' '+ex.type:'');
-  c.textContent=ex.label;c.onclick=()=>loadEx(i);bar.appendChild(c);
+const bar = document.getElementById('exBar');
+EXAMPLES.forEach((ex,i) => {
+  const c = document.createElement('button');
+  c.className = 'chip' + (ex.type !== 'classical' ? ' ' + ex.type : '');
+  c.textContent = ex.label;
+  c.onclick = () => loadEx(i);
+  bar.appendChild(c);
 });
-function loadEx(i){
-  document.querySelectorAll('.chip').forEach((c,j)=>c.classList.toggle('active',j===i));
-  document.getElementById('editor').value=EXAMPLES[i].code.trimStart();setStatus('ready');
+function loadEx(i) {
+  document.querySelectorAll('.chip').forEach((c,j) => c.classList.toggle('active', j===i));
+  document.getElementById('editor').value = EXAMPLES[i].code.trimStart();
+  setStatus('ready');
 }
 loadEx(0);
 
+// ── Distributions ─────────────────────────────────────────────
 function randNormal(mean=0,std=1){let u=0,v=0;while(u===0)u=Math.random();while(v===0)v=Math.random();return mean+std*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 function randBeta(a,b){let x,y;do{x=Math.pow(Math.random(),1/a);y=Math.pow(Math.random(),1/b);}while(x+y>1);return x/(x+y);}
 function randPoisson(lam){const L=Math.exp(-lam);let k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}
-const DISTS={normal:({mean=0,std=1})=>randNormal(mean,std),bernoulli:({prob=0.5})=>Math.random()<prob?1:0,beta:({a=1,b=1})=>randBeta(a,b),uniform:({low=0,high=1})=>low+Math.random()*(high-low),poisson:({lam=1})=>randPoisson(lam),categorical:({probs=[.5,.5]})=>{let r=Math.random(),c=0;for(let i=0;i<probs.length;i++){c+=probs[i];if(r<c)return i;}return probs.length-1;}};
+const DISTS={
+  normal:({mean=0,std=1})=>randNormal(mean,std),
+  bernoulli:({prob=0.5})=>Math.random()<prob?1:0,
+  beta:({a=1,b=1})=>randBeta(a,b),
+  uniform:({low=0,high=1})=>low+Math.random()*(high-low),
+  poisson:({lam=1})=>randPoisson(lam),
+  categorical:({probs=[.5,.5]})=>{let r=Math.random(),c=0;for(let i=0;i<probs.length;i++){c+=probs[i];if(r<c)return i;}return probs.length-1;}
+};
+
+// ── Log probabilities ─────────────────────────────────────────
 const LOG2PI=Math.log(2*Math.PI);
 function lgamma(x){const c=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];let y=x,t=x+5.5,s=1.000000000190015;t-=(x+0.5)*Math.log(t);for(let j=0;j<6;j++)s+=c[j]/++y;return-t+Math.log(2.5066282746310005*s/x);}
 function logBeta(a,b){return lgamma(a)+lgamma(b)-lgamma(a+b);}
-const LOG_PROB={normal:(x,{mean=0,std=1})=>-0.5*((x-mean)/std)**2-Math.log(std)-0.5*LOG2PI,bernoulli:(x,{prob=0.5})=>x===1?Math.log(Math.max(1e-10,prob)):Math.log(Math.max(1e-10,1-prob)),beta:(x,{a=1,b=1})=>x<=0||x>=1?-Infinity:(a-1)*Math.log(x)+(b-1)*Math.log(1-x)-logBeta(a,b),uniform:(x,{low=0,high=1})=>x<low||x>high?-Infinity:-Math.log(high-low),poisson:(x,{lam=1})=>x<0?-Infinity:x*Math.log(lam)-lam-lgamma(x+1),categorical:(x,{probs=[.5,.5]})=>x<0||x>=probs.length?-Infinity:Math.log(Math.max(1e-10,probs[~~x]))};
+const LOG_PROB={
+  normal:(x,{mean=0,std=1})=>-0.5*((x-mean)/std)**2-Math.log(std)-0.5*LOG2PI,
+  bernoulli:(x,{prob=0.5})=>x===1?Math.log(Math.max(1e-10,prob)):Math.log(Math.max(1e-10,1-prob)),
+  beta:(x,{a=1,b=1})=>x<=0||x>=1?-Infinity:(a-1)*Math.log(x)+(b-1)*Math.log(1-x)-logBeta(a,b),
+  uniform:(x,{low=0,high=1})=>x<low||x>high?-Infinity:-Math.log(high-low),
+  poisson:(x,{lam=1})=>x<0?-Infinity:x*Math.log(lam)-lam-lgamma(x+1),
+  categorical:(x,{probs=[.5,.5]})=>x<0||x>=probs.length?-Infinity:Math.log(Math.max(1e-10,probs[~~x]))
+};
 const DISCRETE=new Set(['bernoulli','poisson','categorical']);
 
-function tokenize(src){const re=/[ \t]*(?:(#[^\n]*)|("(?:[^"\\]|\\.)*")|(\b\d+\.\d+\b)|(\b\d+\b)|([A-Za-z_][A-Za-z0-9_]*)|([~=+\-*/()[\],.:])|(\n))[ \t]*/g;const toks=[];let line=1,m;while((m=re.exec(src))!==null){const[,comment,str,flt,int_,id,op,nl]=m;if(nl){line++;continue;}if(comment)continue;else if(str)toks.push({k:'STRING',v:str.slice(1,-1),l:line});else if(flt)toks.push({k:'NUM',v:parseFloat(flt),l:line});else if(int_)toks.push({k:'NUM',v:parseInt(int_),l:line});else if(id)toks.push({k:'ID',v:id,l:line});else if(op)toks.push({k:'OP',v:op,l:line});}toks.push({k:'EOF',v:null,l:line});return toks;}
+// ── Tokenizer ─────────────────────────────────────────────────
+function tokenize(src){
+  const re=/[ \t]*(?:(#[^\n]*)|("(?:[^"\\]|\\.)*")|(\b\d+\.\d+\b)|(\b\d+\b)|([A-Za-z_][A-Za-z0-9_]*)|([~=+\-*/()[\],:.])|\n)[ \t]*/g;
+  const toks=[];let line=1,m;
+  while((m=re.exec(src))!==null){
+    const[full,comment,str,flt,int_,id,op]=m;
+    if(full==='\n'){line++;continue;}
+    if(comment)continue;
+    else if(str)toks.push({k:'STRING',v:str.slice(1,-1),l:line});
+    else if(flt)toks.push({k:'NUM',v:parseFloat(flt),l:line});
+    else if(int_)toks.push({k:'NUM',v:parseInt(int_),l:line});
+    else if(id)toks.push({k:'ID',v:id,l:line});
+    else if(op)toks.push({k:'OP',v:op,l:line});
+  }
+  toks.push({k:'EOF',v:null,l:line});return toks;
+}
 
+// ── Parser ────────────────────────────────────────────────────
 class AetherError extends Error{}
-const BLOCK_KW=new Set(['model','infer','quantum','for','import']);
+const TOP_KW=new Set(['model','infer','quantum','import']);
 class Parser{
   constructor(t){this.t=t;this.p=0;}
   peek(){return this.t[this.p];}
   consume(k,v){const t=this.t[this.p];if(k&&t.k!==k)throw new AetherError(`Line ${t.l}: expected ${k}, got '${t.v}'`);if(v!==undefined&&t.v!==v)throw new AetherError(`Line ${t.l}: expected '${v}', got '${t.v}'`);this.p++;return t;}
   match(k,v){const t=this.peek();if(t.k===k&&(v===undefined||t.v===v))return this.consume();return null;}
   parse(){const s=[];while(this.peek().k!=='EOF')s.push(this.stmt());return s;}
-  block(){const b=[];while(this.peek().k!=='EOF'&&!BLOCK_KW.has(this.peek().v))b.push(this.stmt());return b;}
-  stmt(){const t=this.peek();if(t.k==='ID'){if(t.v==='model')return this.pModel();if(t.v==='quantum')return this.pQuantum();if(t.v==='infer')return this.pInfer();if(t.v==='observe')return this.pObserve();if(t.v==='print')return this.pPrint();if(t.v==='for')return this.pFor();return this.pAssign();}throw new AetherError(`Unexpected '${t.v}'`);}
-  pModel(){this.consume('ID','model');const name=this.consume('ID').v;if(!this.match('OP',':'))throw new AetherError(`Expected ':' after model name '${name}'`);return{t:'model',name,body:this.block()};}
-  pQuantum(){this.consume('ID','quantum');this.consume('ID','circuit');const name=this.consume('ID').v;this.consume('OP',':');const body=[];while(this.peek().k!=='EOF'&&!BLOCK_KW.has(this.peek().v)){const s=this.qStmt();if(s)body.push(s);}return{t:'quantum',name,body};}
-  qStmt(){const t=this.peek();if(t.k==='ID'&&t.v==='qubit'){this.consume();return{t:'qubit',name:this.consume('ID').v};}if(t.k==='ID'&&t.v==='gate'){this.consume();const gate=this.consume('ID').v;this.consume('OP','(');const kw={};while(this.peek().v!==')'){const k=this.consume('ID').v;this.consume('OP','=');kw[k]=this.consume('ID').v;if(this.peek().v===',')this.consume();}this.consume('OP',')');return{t:'gate',gate,target:kw.target,kwargs:kw};}if(t.k==='ID'&&t.v==='measure'){this.consume();return{t:'measure_q',name:this.consume('ID').v};}this.consume();return null;}
-  pInfer(){this.consume('ID','infer');const name=this.consume('ID').v;let method='montecarlo',n=1000,warmup=500,step=0.3;if(this.match('ID','using')){method=this.consume('ID').v;if(this.match('OP','(')){while(this.peek().v!==')'){const k=this.consume('ID').v;this.consume('OP','=');const v=this.consume('NUM').v;if(k==='samples'||k==='shots')n=v;else if(k==='warmup')warmup=v;else if(k==='step_size')step=v;if(this.peek().v===',')this.consume();}this.consume('OP',')')}}return{t:'infer',name,method,n,warmup,step};}
-  pObserve(){this.consume('ID','observe');const name=this.consume('ID').v;this.consume('OP','=');return{t:'observe',name,expr:this.expr()};}
+  block(){const b=[];while(this.peek().k!=='EOF'&&!TOP_KW.has(this.peek().v))b.push(this.stmt());return b;}
+  stmt(){
+    const t=this.peek();
+    if(t.k==='ID'){
+      if(t.v==='model')return this.pModel();
+      if(t.v==='quantum')return this.pQuantum();
+      if(t.v==='infer')return this.pInfer();
+      if(t.v==='observe')return this.pObserve();
+      if(t.v==='print')return this.pPrint();
+      if(t.v==='for')return this.pFor();
+      return this.pAssign();
+    }
+    throw new AetherError(`Unexpected '${t.v}'`);
+  }
+  pModel(){this.consume('ID','model');const name=this.consume('ID').v;if(!this.match('OP',':'))throw new AetherError(`Expected ':' after model '${name}'`);return{t:'model',name,body:this.block()};}
+  pQuantum(){this.consume('ID','quantum');this.consume('ID','circuit');const name=this.consume('ID').v;this.consume('OP',':');const body=[];while(this.peek().k!=='EOF'&&!TOP_KW.has(this.peek().v)){const s=this.qStmt();if(s)body.push(s);}return{t:'quantum',name,body};}
+  qStmt(){const t=this.peek();
+    if(t.k==='ID'&&t.v==='qubit'){this.consume();return{t:'qubit',name:this.consume('ID').v};}
+    if(t.k==='ID'&&t.v==='gate'){this.consume();const gate=this.consume('ID').v;this.consume('OP','(');const kw={};while(this.peek().v!==')'){const k=this.consume('ID').v;this.consume('OP','=');kw[k]=this.consume('ID').v;if(this.peek().v===',')this.consume();}this.consume('OP',')');return{t:'gate',gate,target:kw.target,kwargs:kw};}
+    if(t.k==='ID'&&t.v==='measure'){this.consume();return{t:'measure_q',name:this.consume('ID').v};}
+    this.consume();return null;
+  }
+  pInfer(){
+    this.consume('ID','infer');const name=this.consume('ID').v;
+    let method='montecarlo',n=1000,warmup=500,step=0.3,steps=10;
+    if(this.match('ID','using')){
+      method=this.consume('ID').v;
+      if(this.match('OP','(')){
+        while(this.peek().v!==')'){
+          const k=this.consume('ID').v;this.consume('OP','=');const v=this.consume('NUM').v;
+          if(k==='samples'||k==='shots')n=v;
+          else if(k==='warmup')warmup=v;
+          else if(k==='step_size')step=v;
+          else if(k==='steps')steps=v;
+          if(this.peek().v===',')this.consume();
+        }
+        this.consume('OP',')');
+      }
+    }
+    return{t:'infer',name,method,n,warmup,step,steps};
+  }
+  pObserve(){
+    this.consume('ID','observe');const name=this.consume('ID').v;
+    if(this.peek().v==='['){this.consume();const idx=this.expr();this.consume('OP',']');this.consume('OP','=');return{t:'observe_indexed',name,idx,expr:this.expr()};}
+    this.consume('OP','=');return{t:'observe',name,expr:this.expr()};
+  }
   pPrint(){this.consume('ID','print');return{t:'print',expr:this.expr()};}
   pFor(){this.consume('ID','for');const v=this.consume('ID').v;this.consume('ID','in');const iter=this.expr();this.consume('OP',':');return{t:'for',v,iter,body:this.block()};}
-  pAssign(){const l=this.peek().l;const name=this.consume('ID').v;if(this.peek().v==='~'){this.consume();return{t:'sample',name,dist:this.pDist()};}if(this.peek().v==='='){this.consume();return{t:'assign',name,expr:this.expr()};}throw new AetherError(`Line ${l}: expected '~' or '=' after '${name}'`);}
+  pAssign(){
+    const l=this.peek().l;const name=this.consume('ID').v;
+    if(this.peek().v==='['){this.consume();const idx=this.expr();this.consume('OP',']');
+      if(this.peek().v==='~'){this.consume();return{t:'sample_indexed',name,idx,dist:this.pDist()};}
+      this.consume('OP','=');return{t:'assign_indexed',name,idx,expr:this.expr()};
+    }
+    if(this.peek().v==='~'){this.consume();return{t:'sample',name,dist:this.pDist()};}
+    if(this.peek().v==='='){this.consume();return{t:'assign',name,expr:this.expr()};}
+    throw new AetherError(`Line ${l}: expected '~' or '=' after '${name}'`);
+  }
   pDist(){const l=this.peek().l;const name=this.consume('ID').v;if(!DISTS[name])throw new AetherError(`Line ${l}: unknown distribution '${name}'`);this.consume('OP','(');const kw={};while(this.peek().v!==')'){const k=this.consume('ID').v;this.consume('OP','=');kw[k]=this.expr();if(this.peek().v===',')this.consume();}this.consume('OP',')');return{t:'dist',name,kwargs:kw};}
-  expr(){let l=this.primary();while(['+','-','*','/'].includes(this.peek().v)){const op=this.consume('OP').v;l={t:'binop',op,l,r:this.primary()};}return l;}
-  primary(){const t=this.peek();if(t.k==='OP'&&t.v==='-'){this.consume();return{t:'binop',op:'*',l:{t:'num',v:-1},r:this.primary()};}if(t.k==='NUM'){this.consume();return{t:'num',v:t.v};}if(t.k==='STRING'){this.consume();return{t:'str',v:t.v};}if(t.k==='ID'){this.consume();return{t:'var',v:t.v};}if(t.v==='('){this.consume();const e=this.expr();this.consume('OP',')');return e;}if(t.v==='['){this.consume();const items=[];while(this.peek().v!==']'){items.push(this.expr());if(this.peek().v===',')this.consume();}this.consume('OP',']');return{t:'list',items};}throw new AetherError(`Unexpected '${t.v}'`);}
+  expr(){let left=this.primary();while(['+','-','*','/'].includes(this.peek().v)){const op=this.consume('OP').v;left={t:'binop',op,l:left,r:this.primary()};}return left;}
+  primary(){
+    const t=this.peek();
+    if(t.k==='OP'&&t.v==='-'){this.consume();return{t:'binop',op:'*',l:{t:'num',v:-1},r:this.primary()};}
+    if(t.k==='NUM'){this.consume();return{t:'num',v:t.v};}
+    if(t.k==='STRING'){this.consume();return{t:'str',v:t.v};}
+    if(t.k==='ID'){
+      const name=this.consume();
+      if(this.peek().v==='('){this.consume();const args=[];while(this.peek().v!==')'){args.push(this.expr());if(this.peek().v===',')this.consume();}this.consume('OP',')');return{t:'call',name:name.v,args};}
+      if(this.peek().v==='['){this.consume();const idx=this.expr();this.consume('OP',']');return{t:'index',name:name.v,idx};}
+      return{t:'var',v:name.v};
+    }
+    if(t.v==='('){this.consume();const e=this.expr();this.consume('OP',')');return e;}
+    if(t.v==='['){this.consume();const items=[];while(this.peek().v!==']'){items.push(this.expr());if(this.peek().v===',')this.consume();}this.consume('OP',']');return{t:'list',items};}
+    throw new AetherError(`Unexpected '${t.v}'`);
+  }
 }
 
+// ── Evaluator ─────────────────────────────────────────────────
 function evalExpr(node,env){
-  if(node.t==='num')return node.v;if(node.t==='str')return node.v;
+  if(node.t==='num')return node.v;
+  if(node.t==='str')return node.v;
   if(node.t==='var'){if(!(node.v in env))throw new AetherError(`'${node.v}' is not defined`);return env[node.v];}
   if(node.t==='list')return node.items.map(i=>evalExpr(i,env));
   if(node.t==='binop'){const l=evalExpr(node.l,env),r=evalExpr(node.r,env);return node.op==='+'?l+r:node.op==='-'?l-r:node.op==='*'?l*r:l/r;}
+  if(node.t==='index'){const key=`${node.name}[${evalExpr(node.idx,env)}]`;if(!(key in env))throw new AetherError(`'${key}' is not defined`);return env[key];}
+  if(node.t==='call'){
+    const args=node.args.map(a=>evalExpr(a,env));
+    if(node.name==='range'){return args.length===1?[...Array(Math.floor(args[0])).keys()]:[...Array(Math.floor(args[1]-args[0])).keys()].map(i=>i+args[0]);}
+    if(node.name==='len')return args[0].length;
+    throw new AetherError(`Unknown function '${node.name}'`);
+  }
   if(node.t==='dist'){const kw={};for(const[k,v]of Object.entries(node.kwargs))kw[k]=evalExpr(v,env);return DISTS[node.name](kw);}
 }
 
+// ── Score model ───────────────────────────────────────────────
 function findDist(body,name){for(const s of body)if(s.t==='sample'&&s.name===name)return s.dist;return null;}
-function scoreModel(body,env,ef){
+function findIndexedDist(body,name){for(const s of body)if(s.t==='sample_indexed'&&s.name===name)return s.dist;return null;}
+
+function scoreModel(body,env){
   let lp=0;
   for(const s of body){
-    if(s.t==='sample'){const kw={};for(const[k,v]of Object.entries(s.dist.kwargs))kw[k]=ef(v,env);lp+=LOG_PROB[s.dist.name](env[s.name],kw);}
-    else if(s.t==='assign'){env[s.name]=ef(s.expr,env);}
-    else if(s.t==='observe'){
-      const obs=ef(s.expr,env);const observations=Array.isArray(obs)?obs:[obs];
-      const dist=findDist(body,s.name);
-      if(!dist){env[s.name]=observations[0];continue;}
-      const kw={};for(const[k,v]of Object.entries(dist.kwargs))kw[k]=ef(v,env);
-      const lpFn=LOG_PROB[dist.name];if(!lpFn)continue;
-      for(const o of observations)lp+=lpFn(o,kw);
+    if(s.t==='sample'){
+      const kw={};for(const[k,v]of Object.entries(s.dist.kwargs))kw[k]=evalExpr(v,env);
+      const lpFn=LOG_PROB[s.dist.name];if(lpFn)lp+=lpFn(env[s.name],kw);
+    } else if(s.t==='sample_indexed'){
+      const idx=evalExpr(s.idx,env);const key=`${s.name}[${idx}]`;
+      const kw={};for(const[k,v]of Object.entries(s.dist.kwargs))kw[k]=evalExpr(v,env);
+      const lpFn=LOG_PROB[s.dist.name];if(lpFn&&key in env)lp+=lpFn(env[key],kw);
+    } else if(s.t==='assign'){
+      env[s.name]=evalExpr(s.expr,env);
+    } else if(s.t==='assign_indexed'){
+      const idx=evalExpr(s.idx,env);env[`${s.name}[${idx}]`]=evalExpr(s.expr,env);
+    } else if(s.t==='observe'){
+      const obs=evalExpr(s.expr,env);const observations=Array.isArray(obs)?obs:[obs];
+      const dist=findDist(body,s.name);if(!dist){env[s.name]=observations[0];continue;}
+      const kw={};for(const[k,v]of Object.entries(dist.kwargs))kw[k]=evalExpr(v,env);
+      const lpFn=LOG_PROB[dist.name];if(lpFn)for(const o of observations)lp+=lpFn(o,kw);
       env[s.name]=observations[0];
+    } else if(s.t==='observe_indexed'){
+      const idx=evalExpr(s.idx,env);const key=`${s.name}[${idx}]`;
+      const val=evalExpr(s.expr,env);
+      const dist=findIndexedDist(body,s.name);if(!dist){env[key]=val;continue;}
+      const kw={};for(const[k,v]of Object.entries(dist.kwargs))kw[k]=evalExpr(v,env);
+      const lpFn=LOG_PROB[dist.name];if(lpFn)lp+=lpFn(val,kw);
+      env[key]=val;
+    } else if(s.t==='for'){
+      const iterable=evalExpr(s.iter,env);if(!Array.isArray(iterable))continue;
+      for(const item of iterable){
+        const loopEnv={...env};loopEnv[s.v]=item;
+        lp+=scoreModel(s.body,loopEnv);
+        for(const[k,v]of Object.entries(loopEnv))if(k!==s.v)env[k]=v;
+      }
     }
   }
   return lp;
 }
 
+// ── Init env ──────────────────────────────────────────────────
+function initEnv(body){
+  const env={};
+  for(const s of body){
+    if(s.t==='sample'){const kw={};for(const[k,v]of Object.entries(s.dist.kwargs))kw[k]=evalExpr(v,env);env[s.name]=DISTS[s.dist.name](kw);}
+    else if(s.t==='assign'){env[s.name]=evalExpr(s.expr,env);}
+    else if(s.t==='for'){
+      const iterable=evalExpr(s.iter,env);if(!Array.isArray(iterable))continue;
+      for(const item of iterable){
+        const loopEnv={...env};loopEnv[s.v]=item;
+        for(const ls of s.body){
+          if(ls.t==='sample_indexed'){const idx=evalExpr(ls.idx,loopEnv);const key=`${ls.name}[${idx}]`;const kw={};for(const[k,v]of Object.entries(ls.dist.kwargs))kw[k]=evalExpr(v,loopEnv);env[key]=DISTS[ls.dist.name](kw);}
+          else if(ls.t==='assign_indexed'){const idx=evalExpr(ls.idx,loopEnv);env[`${ls.name}[${idx}]`]=evalExpr(ls.expr,loopEnv);}
+        }
+      }
+    }
+  }
+  return env;
+}
+
+// ── Collect latents ───────────────────────────────────────────
+function collectLatents(body,env){
+  const obsKeys=new Set();const latents=[];
+  for(const s of body){
+    if(s.t==='observe')obsKeys.add(s.name);
+    if(s.t==='observe_indexed'){const idx=evalExpr(s.idx,env);obsKeys.add(`${s.name}[${idx}]`);}
+    if(s.t==='for'){
+      const it=evalExpr(s.iter,env);if(!Array.isArray(it))continue;
+      for(const item of it){const le={...env};le[s.v]=item;for(const ls of s.body){if(ls.t==='observe_indexed'){const idx=evalExpr(ls.idx,le);obsKeys.add(`${ls.name}[${idx}]`);}}}
+    }
+  }
+  for(const s of body){
+    if(s.t==='sample'&&!obsKeys.has(s.name))latents.push({key:s.name,dist:s.dist});
+    if(s.t==='for'){
+      const it=evalExpr(s.iter,env);if(!Array.isArray(it))continue;
+      for(const item of it){const le={...env};le[s.v]=item;for(const ls of s.body){if(ls.t==='sample_indexed'){const idx=evalExpr(ls.idx,le);const key=`${ls.name}[${idx}]`;if(!obsKeys.has(key))latents.push({key,dist:ls.dist});}}}
+    }
+  }
+  return latents;
+}
+
+// ── MCMC (Metropolis-Hastings) ────────────────────────────────
+function propose(val,distName,kwargs,stepSize){
+  if(DISCRETE.has(distName))return DISTS[distName](kwargs);
+  const scale=kwargs.std||Math.abs((kwargs.high||1)-(kwargs.low||0))||1;
+  let p=val+randNormal(0,stepSize*Math.max(Math.abs(scale),0.1));
+  if(distName==='beta')p=Math.max(1e-6,Math.min(1-1e-6,p));
+  else if(distName==='uniform')p=Math.max((kwargs.low||0)+1e-10,Math.min((kwargs.high||1)-1e-10,p));
+  return p;
+}
+
 function runMCMC(body,samples,warmup,stepSize){
-  const obsVars=new Set(body.filter(s=>s.t==='observe').map(s=>s.name));
-  const latent=[];const distMap={};
-  for(const s of body){if(s.t==='sample'){distMap[s.name]=s.dist;if(!obsVars.has(s.name))latent.push(s.name);}}
-  if(!latent.length)return{samples:[],accepted:0,total:samples,latentVars:latent};
-  const ef=(node,env)=>evalExpr(node,env);
-  let cur={};
-  for(const s of body){if(s.t==='sample'){const kw={};for(const[k,v]of Object.entries(s.dist.kwargs))kw[k]=ef(v,cur);cur[s.name]=DISTS[s.dist.name](kw);}else if(s.t==='assign'){cur[s.name]=ef(s.expr,cur);}}
-  let curLP=scoreModel(body,{...cur},ef);
+  let cur=initEnv(body);
+  const latents=collectLatents(body,cur);
+  if(!latents.length)return{samples:[],accepted:0,total:samples,latentVars:[]};
+  const distMap={};for(const{key,dist}of latents)distMap[key]=dist;
+  let curLP=scoreModel(body,{...cur});
   const allSamples=[];let accepted=0;
   for(let step=0;step<samples+warmup;step++){
     const prop={...cur};
-    for(const name of latent){
-      const dist=distMap[name];const kw={};for(const[k,v]of Object.entries(dist.kwargs))kw[k]=ef(v,cur);
-      if(DISCRETE.has(dist.name)){prop[name]=DISTS[dist.name](kw);}
-      else{const scale=kw.std||Math.abs((kw.high||1)-(kw.low||0))||1;let p=cur[name]+randNormal(0,stepSize*Math.max(Math.abs(scale),0.1));if(dist.name==='beta')p=Math.max(1e-6,Math.min(1-1e-6,p));else if(dist.name==='uniform')p=Math.max((kw.low||0)+1e-10,Math.min((kw.high||1)-1e-10,p));prop[name]=p;}
+    for(const{key,dist}of latents){
+      const kw={};for(const[k,v]of Object.entries(dist.kwargs))kw[k]=evalExpr(v,cur);
+      prop[key]=propose(cur[key],dist.name,kw,stepSize);
     }
-    const propLP=scoreModel(body,{...prop},ef);
+    const propLP=scoreModel(body,{...prop});
     if(Math.log(Math.random()+1e-300)<propLP-curLP){cur=prop;curLP=propLP;if(step>=warmup)accepted++;}
     if(step>=warmup)allSamples.push({...cur});
   }
-  return{samples:allSamples,accepted,total:samples,latentVars:latent};
+  return{samples:allSamples,accepted,total:samples,latentVars:latents.map(l=>l.key)};
 }
 
+// ── HMC ──────────────────────────────────────────────────────
+function toUnconstrained(val,distName,kwargs){
+  if(distName==='beta'){val=Math.max(1e-6,Math.min(1-1e-6,val));return Math.log(val/(1-val));}
+  if(distName==='uniform'){const lo=kwargs.low||0,hi=kwargs.high||1;val=Math.max(lo+1e-10,Math.min(hi-1e-10,val));const p=Math.max(1e-6,Math.min(1-1e-6,(val-lo)/(hi-lo)));return Math.log(p/(1-p));}
+  return val;
+}
+function toConstrained(u,distName,kwargs){
+  if(distName==='beta')return 1/(1+Math.exp(-u));
+  if(distName==='uniform'){const lo=kwargs.low||0,hi=kwargs.high||1;return lo+(hi-lo)/(1+Math.exp(-u));}
+  return u;
+}
+function logJacobian(u,distName,kwargs){
+  if(distName==='beta'){const s=1/(1+Math.exp(-u));return Math.log(Math.max(s*(1-s),1e-30));}
+  if(distName==='uniform'){const lo=kwargs.low||0,hi=kwargs.high||1;const s=1/(1+Math.exp(-u));return Math.log(Math.max(s*(1-s)*(hi-lo),1e-30));}
+  return 0;
+}
+
+function gradNumerical(logJointFn,q,eps=1e-4){
+  const grads={};
+  for(const k of Object.keys(q)){
+    const qp={...q};qp[k]+=eps;const lpp=logJointFn(qp);
+    const qm={...q};qm[k]-=eps;const lpm=logJointFn(qm);
+    grads[k]=(lpp-lpm)/(2*eps);
+  }
+  return grads;
+}
+
+function runHMC(body,samples,warmup,stepSize,nSteps){
+  let cur=initEnv(body);
+  const latents=collectLatents(body,cur);
+  const contLatents=latents.filter(l=>!DISCRETE.has(l.dist.name));
+  const discLatents=latents.filter(l=>DISCRETE.has(l.dist.name));
+  if(!latents.length)return{samples:[],accepted:0,total:samples,latentVars:[]};
+
+  const distMap={};for(const{key,dist}of latents)distMap[key]=dist;
+
+  function logJointFn(qUnc){
+    const env={...cur};let lj=0;
+    for(const{key,dist}of contLatents){
+      const kw={};for(const[k,v]of Object.entries(dist.kwargs))kw[k]=evalExpr(v,cur);
+      const u=qUnc[key]||0;const constrained=toConstrained(u,dist.name,kw);
+      env[key]=constrained;lj+=logJacobian(u,dist.name,kw);
+    }
+    for(const{key}of discLatents)env[key]=cur[key]||0;
+    return scoreModel(body,{...env})+lj;
+  }
+
+  // Init unconstrained
+  let qCur={};
+  for(const{key,dist}of contLatents){
+    const kw={};for(const[k,v]of Object.entries(dist.kwargs))kw[k]=evalExpr(v,cur);
+    qCur[key]=toUnconstrained(cur[key]||0.5,dist.name,kw);
+  }
+  let curLP=logJointFn(qCur);
+
+  const allSamples=[];let accepted=0;
+  for(let step=0;step<samples+warmup;step++){
+    const p={};for(const k of Object.keys(qCur))p[k]=randNormal(0,1);
+    const kinCur=0.5*Object.values(p).reduce((a,b)=>a+b*b,0);
+    const HCur=-curLP+kinCur;
+
+    // Leapfrog
+    let q={...qCur},mom={...p};
+    let grads=gradNumerical(logJointFn,q);
+    for(const k of Object.keys(mom))mom[k]+=0.5*stepSize*(grads[k]||0);
+    for(let i=0;i<nSteps-1;i++){
+      for(const k of Object.keys(q))q[k]+=stepSize*mom[k];
+      grads=gradNumerical(logJointFn,q);
+      for(const k of Object.keys(mom))mom[k]+=stepSize*(grads[k]||0);
+    }
+    for(const k of Object.keys(q))q[k]+=stepSize*mom[k];
+    grads=gradNumerical(logJointFn,q);
+    for(const k of Object.keys(mom))mom[k]+=0.5*stepSize*(grads[k]||0);
+
+    let propLP;try{propLP=logJointFn(q);}catch{propLP=-Infinity;}
+    const kinProp=0.5*Object.values(mom).reduce((a,b)=>a+b*b,0);
+    const HProp=-propLP+kinProp;
+
+    if(Math.log(Math.random()+1e-300)<HCur-HProp){qCur=q;curLP=propLP;if(step>=warmup)accepted++;}
+
+    if(step>=warmup){
+      const snap={};
+      for(const{key,dist}of contLatents){
+        const kw={};for(const[k,v]of Object.entries(dist.kwargs))kw[k]=evalExpr(v,cur);
+        snap[key]=toConstrained(qCur[key],dist.name,kw);
+      }
+      for(const{key}of discLatents)snap[key]=cur[key]||0;
+      allSamples.push(snap);
+    }
+  }
+  return{samples:allSamples,accepted,total:samples,latentVars:latents.map(l=>l.key),algorithm:'HMC'};
+}
+
+// ── Quantum simulator ─────────────────────────────────────────
 const INV_SQRT2=1/Math.sqrt(2);
 const GATE_MAT={hadamard:[[INV_SQRT2,INV_SQRT2],[INV_SQRT2,-INV_SQRT2]],pauli_x:[[0,1],[1,0]],pauli_z:[[1,0],[0,-1]],identity:[[1,0],[0,1]]};
 function runQuantum(circuitBody,shots){
@@ -253,8 +535,12 @@ function runQuantum(circuitBody,shots){
       if(op.t==='gate'){
         const g=op.gate,tIdx=qubits[op.target];
         if(g==='cnot'){const cIdx=qubits[op.kwargs.control],cBit=nQ-1-cIdx,tBit=nQ-1-tIdx;const nr=re.slice(),ni=im.slice();for(let i=0;i<dim;i++)if((i>>cBit)&1){const j=i^(1<<tBit);nr[i]=re[j];ni[i]=im[j];nr[j]=re[i];ni[j]=im[i];}re.set(nr);im.set(ni);}
-        else{const mat=GATE_MAT[g];if(!mat)continue;const q=nQ-1-tIdx,step=1<<q;const nr=new Float64Array(dim),ni=new Float64Array(dim);for(let i=0;i<dim;i++){const bit=(i>>q)&1,p=i^step;if(bit===0){nr[i]+=mat[0][0]*re[i]+mat[0][1]*re[p];ni[i]+=mat[0][0]*im[i]+mat[0][1]*im[p];nr[p]+=mat[1][0]*re[i]+mat[1][1]*re[p];ni[p]+=mat[1][0]*im[i]+mat[1][1]*im[p];}}re.set(nr);im.set(ni);}
-      }else if(op.t==='measure_q'){const idx=qubits[op.name],q=nQ-1-idx;let p1=0;for(let i=0;i<dim;i++)if((i>>q)&1)p1+=re[i]*re[i]+im[i]*im[i];const result=Math.random()<p1?1:0;let norm=0;for(let i=0;i<dim;i++){if(((i>>q)&1)!==result){re[i]=0;im[i]=0;}else norm+=re[i]*re[i]+im[i]*im[i];}norm=Math.sqrt(norm);if(norm>1e-12)for(let i=0;i<dim;i++){re[i]/=norm;im[i]/=norm;}}
+        else{const mat=GATE_MAT[g];if(!mat)continue;const q=nQ-1-tIdx,step=1<<q;const nr=new Float64Array(dim),ni=new Float64Array(dim);for(let i=0;i<dim;i++){const bit=(i>>q)&1,pp=i^step;if(bit===0){nr[i]+=mat[0][0]*re[i]+mat[0][1]*re[pp];ni[i]+=mat[0][0]*im[i]+mat[0][1]*im[pp];nr[pp]+=mat[1][0]*re[i]+mat[1][1]*re[pp];ni[pp]+=mat[1][0]*im[i]+mat[1][1]*im[pp];}}re.set(nr);im.set(ni);}
+      } else if(op.t==='measure_q'){
+        const idx=qubits[op.name],q=nQ-1-idx;let p1=0;for(let i=0;i<dim;i++)if((i>>q)&1)p1+=re[i]*re[i]+im[i]*im[i];
+        const result=Math.random()<p1?1:0;let norm=0;for(let i=0;i<dim;i++){if(((i>>q)&1)!==result){re[i]=0;im[i]=0;}else norm+=re[i]*re[i]+im[i]*im[i];}
+        norm=Math.sqrt(norm);if(norm>1e-12)for(let i=0;i<dim;i++){re[i]/=norm;im[i]/=norm;}
+      }
     }
     let r=Math.random(),cum=0,chosen=0;for(let i=0;i<dim;i++){cum+=re[i]*re[i]+im[i]*im[i];if(r<cum){chosen=i;break;}}
     const key=qNames.map(n=>`${n}=${(chosen>>(nQ-1-qubits[n]))&1}`).join(' ');counts[key]=(counts[key]||0)+1;
@@ -262,32 +548,58 @@ function runQuantum(circuitBody,shots){
   return{qubits:qNames,counts};
 }
 
+// ── Run program ───────────────────────────────────────────────
 function runProgram(src){
   const ast=new Parser(tokenize(src)).parse();
-  const models={},circuits={},output=[];
+  const models={},circuits={};const output=[];
   for(const s of ast){
     if(s.t==='model')models[s.name]=s.body;
     if(s.t==='quantum')circuits[s.name]=s.body;
     if(s.t==='infer'){
-      if(s.method==='quantum'){if(!circuits[s.name])throw new AetherError(`Circuit '${s.name}' not defined`);output.push({type:'quantum',name:s.name,shots:s.n,...runQuantum(circuits[s.name],s.n)});}
-      else{if(!models[s.name])throw new AetherError(`Model '${s.name}' not defined`);output.push({type:'classical',name:s.name,...runMCMC(models[s.name],s.n,s.warmup,s.step)});}
+      if(s.method==='quantum'){
+        if(!circuits[s.name])throw new AetherError(`Circuit '${s.name}' not defined`);
+        output.push({type:'quantum',name:s.name,shots:s.n,...runQuantum(circuits[s.name],s.n)});
+      } else if(s.method==='hmc'){
+        if(!models[s.name])throw new AetherError(`Model '${s.name}' not defined`);
+        output.push({type:'classical',name:s.name,algorithm:'HMC',...runHMC(models[s.name],s.n,s.warmup,s.step,s.steps)});
+      } else {
+        if(!models[s.name])throw new AetherError(`Model '${s.name}' not defined`);
+        output.push({type:'classical',name:s.name,algorithm:'MH',...runMCMC(models[s.name],s.n,s.warmup,s.step)});
+      }
     }
   }
   return output;
 }
 
+// ── Stats ─────────────────────────────────────────────────────
 function vstats(vals){const n=vals.length,mean=vals.reduce((a,b)=>a+b,0)/n;const std=Math.sqrt(vals.reduce((a,b)=>a+(b-mean)**2,0)/n);const s=[...vals].sort((a,b)=>a-b);return{mean,std,median:s[n>>1],lo:s[~~(n*0.05)],hi:s[~~(n*0.95)]};}
 function vrhat(vals){if(vals.length<4)return null;const mid=vals.length>>1;const chains=[vals.slice(0,mid),vals.slice(mid)];const n=mid,cms=chains.map(c=>c.reduce((a,b)=>a+b,0)/n);const gm=cms.reduce((a,b)=>a+b,0)/2;const B=n*cms.reduce((a,c)=>a+(c-gm)**2,0);const W=chains.reduce((a,c,i)=>a+c.reduce((s,v)=>s+(v-cms[i])**2,0)/(n-1),0)/2;if(W<1e-10)return 1;return Math.sqrt(((1-1/n)*W+B/n)/W);}
 
-function buildHistogram(vals,isQ){
+// ── Build histogram ───────────────────────────────────────────
+function buildHist(vals,isQ){
   const isDisc=vals.every(v=>Number.isInteger(v)&&Math.abs(v)<100);
   let buckets;
   if(isDisc){const map={};for(const v of vals)map[v]=(map[v]||0)+1;buckets=Object.entries(map).sort((a,b)=>+a[0]-+b[0]).map(([k,c])=>({label:k,count:c}));}
-  else{const lo=Math.min(...vals),hi=Math.max(...vals);if(Math.abs(hi-lo)<1e-10)return'<div class="hist-row"><span class="hist-label">—</span><span style="color:var(--muted);font-size:11px">constant</span></div>';const BINS=10,step=(hi-lo)/BINS;const bc=new Array(BINS).fill(0);for(const v of vals)bc[Math.min(~~((v-lo)/step),BINS-1)]++;buckets=bc.map((c,i)=>({label:(lo+i*step).toFixed(3),count:c}));}
+  else{const lo=Math.min(...vals),hi=Math.max(...vals);if(Math.abs(hi-lo)<1e-10)return'<div style="color:var(--muted);font-size:10px">constant</div>';const BINS=8,step=(hi-lo)/BINS;const bc=new Array(BINS).fill(0);for(const v of vals)bc[Math.min(~~((v-lo)/step),BINS-1)]++;buckets=bc.map((c,i)=>({label:(lo+i*step).toFixed(3),count:c}));}
   const max=Math.max(...buckets.map(b=>b.count));const n=vals.length;
-  return buckets.map(({label,count})=>`<div class="hist-row"><span class="hist-label">${label}</span><div class="hist-track"><div class="${isQ?'hist-fill-q':'hist-fill-c'}" style="width:${(count/max*100).toFixed(1)}%"></div></div><span class="hist-pct">${(count/n*100).toFixed(1)}%</span></div>`).join('');
+  return buckets.map(({label,count})=>`<div class="hist-row"><span class="hist-label">${label}</span><div class="hist-track"><div class="hist-fill ${isQ?'hist-fill-q':'hist-fill-c'}" style="width:${(count/max*100).toFixed(1)}%"></div></div><span class="hist-pct">${(count/n*100).toFixed(1)}%</span></div>`).join('');
 }
 
+// ── Build trace plot (canvas) ─────────────────────────────────
+function buildTrace(vals){
+  const lo=Math.min(...vals),hi=Math.max(...vals);
+  if(Math.abs(hi-lo)<1e-10)return'<div style="color:var(--muted);font-size:10px;padding:4px">constant — chain did not move</div>';
+  const W=300,H=50,n=Math.min(vals.length,W);const step=Math.max(1,Math.floor(vals.length/W));
+  const sampled=[];for(let i=0;i<vals.length;i+=step)sampled.push(vals[i]);
+  const dots=sampled.slice(0,W).map((v,i)=>{
+    const x=(i/Math.max(sampled.length-1,1)*100).toFixed(1);
+    const y=(100-(v-lo)/(hi-lo)*100).toFixed(1);
+    return`<div class="trace-dot" style="left:${x}%;top:${y}%"></div>`;
+  }).join('');
+  return`<div class="trace-canvas" style="width:100%">${dots}</div><div style="display:flex;justify-content:space-between;color:var(--muted);font-size:9px;margin-top:2px"><span>iter 1</span><span>iter ${vals.length.toLocaleString()}</span></div>`;
+}
+
+// ── Render output ─────────────────────────────────────────────
 function renderOutput(results){
   const el=document.getElementById('output');
   if(!results.length){el.innerHTML='<div class="out-error">No output produced.</div>';return;}
@@ -295,19 +607,27 @@ function renderOutput(results){
   for(let ri=0;ri<results.length;ri++){
     const r=results[ri];const sec=document.createElement('div');sec.className='out-section';
     if(r.type==='classical'){
+      const algo=r.algorithm||'MH';
       const rate=(r.accepted/r.total*100).toFixed(1);
-      const ac=parseFloat(rate)<10?'var(--coral)':parseFloat(rate)>80?'var(--amber)':'var(--green)';
-      sec.innerHTML+=`<div class="out-header">⟁ Aether MCMC — '${r.name}'</div><div class="out-divider">${'─'.repeat(44)}</div><div class="out-accepted" style="color:${ac}">Accepted: ${r.accepted.toLocaleString()}/${r.total.toLocaleString()} (${rate}%) · Metropolis-Hastings</div>`;
+      const healthyHi=algo==='HMC'?95:80;const healthyLo=algo==='HMC'?40:10;
+      const ac=parseFloat(rate)<healthyLo?'err':parseFloat(rate)>healthyHi?'warn':'ok';
+      sec.innerHTML+=`<div class="out-header">⟁ Aether ${algo==='HMC'?'HMC':'MCMC'} — '${r.name}'</div>`;
+      sec.innerHTML+=`<div class="out-divider">${'─'.repeat(44)}</div>`;
+      sec.innerHTML+=`<div class="out-meta">Algorithm: ${algo==='HMC'?'Hamiltonian Monte Carlo':'Metropolis-Hastings'} &nbsp;|&nbsp; Samples: ${r.total.toLocaleString()} &nbsp;|&nbsp; Acceptance: <span class="${ac}">${rate}%</span></div>`;
       for(const v of r.latentVars){
         const vals=r.samples.map(s=>s[v]).filter(x=>x!==undefined);if(!vals.length)continue;
         const st=vstats(vals);const rh=vrhat(vals);
-        const rhatHtml=rh!=null?`<span class="${rh<1.1?'rhat-ok':'rhat-warn'}">R-hat ${rh.toFixed(3)} ${rh<1.1?'✓':'⚠'}</span>`:'';
+        const rhatHtml=rh!=null?`&nbsp;&nbsp;<span class="${rh<1.1?'rhat-ok':'rhat-warn'}">R-hat ${rh.toFixed(3)} ${rh<1.1?'✓':'⚠'}</span>`:'';
         const vb=document.createElement('div');vb.className='var-block';
-        vb.innerHTML=`<div class="var-name">${v}</div>${buildHistogram(vals,false)}<div class="var-stats">mean <span>${st.mean.toFixed(4)}</span> &nbsp; std <span>${st.std.toFixed(4)}</span> &nbsp; median <span>${st.median.toFixed(4)}</span><br>90% CI [<span>${st.lo.toFixed(4)}</span>, <span>${st.hi.toFixed(4)}</span>] &nbsp;&nbsp;${rhatHtml}</div>`;
+        vb.innerHTML=`<div class="var-name">${v}</div>${buildHist(vals,false)}<div class="var-stats">mean <span>${st.mean.toFixed(4)}</span> &nbsp; std <span>${st.std.toFixed(4)}</span> &nbsp; 90% CI [<span>${st.lo.toFixed(3)}</span>, <span>${st.hi.toFixed(3)}</span>]${rhatHtml}</div>`;
+        const isDisc=vals.every(x=>Number.isInteger(x)&&Math.abs(x)<100);
+        if(!isDisc){const tb=document.createElement('div');tb.className='trace-block';tb.innerHTML=`<div class="trace-label">trace plot</div>${buildTrace(vals)}`;vb.appendChild(tb);}
         sec.appendChild(vb);
       }
     } else if(r.type==='quantum'){
-      sec.innerHTML+=`<div class="out-header">⟁ Aether Quantum — '${r.name}'</div><div class="out-divider">${'─'.repeat(44)}</div>`;
+      sec.innerHTML+=`<div class="out-header">⟁ Aether Quantum — '${r.name}'</div>`;
+      sec.innerHTML+=`<div class="out-divider">${'─'.repeat(44)}</div>`;
+      sec.innerHTML+=`<div class="out-meta">${r.shots.toLocaleString()} shots &nbsp;|&nbsp; ${r.qubits?.length||0} qubits</div>`;
       if(r.qubits?.length){
         for(const q of r.qubits){
           let ones=0;for(const[outcome,cnt]of Object.entries(r.counts)){for(const part of outcome.split(' ')){const[name,val]=part.split('=');if(name===q&&parseInt(val)===1)ones+=cnt;}}
@@ -318,14 +638,15 @@ function renderOutput(results){
         }
       }
       const sorted=Object.entries(r.counts).sort((a,b)=>b[1]-a[1]).slice(0,6);const maxC=sorted[0]?.[1]||1;
-      sec.innerHTML+=`<div class="outcomes-label">Top outcomes (${r.shots.toLocaleString()} shots)</div>`;
-      for(const[outcome,cnt]of sorted){const pct=(cnt/r.shots*100).toFixed(1);const row=document.createElement('div');row.className='outcome-row';row.innerHTML=`<span class="outcome-key">${outcome}</span><div class="outcome-bar" style="width:${Math.round(cnt/maxC*100)}px"></div><span class="outcome-val">${cnt}× <strong>(${pct}%)</strong></span>`;sec.appendChild(row);}
+      sec.innerHTML+=`<div class="outcomes-label">Top outcomes</div>`;
+      for(const[outcome,cnt]of sorted){const pct=(cnt/r.shots*100).toFixed(1);const row=document.createElement('div');row.className='outcome-row';row.innerHTML=`<span class="outcome-key">${outcome}</span><div class="outcome-bar" style="width:${Math.round(cnt/maxC*80)}px"></div><span class="outcome-val">${cnt}× <strong>(${pct}%)</strong></span>`;sec.appendChild(row);}
     }
     if(ri<results.length-1){const div=document.createElement('div');div.className='out-mode-divider';div.textContent=results[ri+1].type==='quantum'?'quantum circuit':'probabilistic model';el.appendChild(sec);el.appendChild(div);}
     else el.appendChild(sec);
   }
 }
 
+// ── Controls ──────────────────────────────────────────────────
 function setStatus(state,text){const dot=document.getElementById('dot');const txt=document.getElementById('statusTxt');dot.className='dot'+(state&&state!=='ready'?' '+state:'');txt.textContent=text||state;}
 function clearOutput(){document.getElementById('output').innerHTML='<div class="placeholder"><div class="placeholder-glyph">⟁</div><div class="placeholder-text">run your first .aeth program</div></div>';setStatus('ready');}
 function runCode(){
@@ -334,7 +655,7 @@ function runCode(){
   setTimeout(()=>{
     try{const t0=performance.now();const results=runProgram(src);const ms=(performance.now()-t0).toFixed(0);renderOutput(results);setStatus('ok',`done in ${ms}ms`);}
     catch(e){document.getElementById('output').innerHTML=`<div class="out-error">✗ ${e.message}</div>`;setStatus('err','error');}
-    finally{btn.classList.remove('loading');btn.innerHTML='<svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor"><path d="M2 1.5l8 4.5-8 4.5V1.5z"/></svg> Run';}
+    finally{btn.classList.remove('loading');btn.innerHTML='<svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><path d="M2 1.5l8 4.5-8 4.5V1.5z"/></svg> Run';}
   },10);
 }
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();runCode();}});
