@@ -1,0 +1,56 @@
+# Deutsch-Jozsa Algorithm
+#
+# Determines whether a function f:{0,1} -> {0,1} is constant or balanced
+# with a SINGLE quantum query. Classically requires 2 queries.
+#
+# This is the first proof that quantum computers can solve problems
+# faster than any classical computer.
+#
+# Circuit structure:
+#   q0: |0> -- H -- [oracle] -- H -- measure
+#   q1: |1> -- H -- [oracle] -- (discard)
+#
+# Result:
+#   q0 = 0 -> function is CONSTANT (always returns same value)
+#   q0 = 1 -> function is BALANCED (returns 0 half the time, 1 half)
+
+# ── Balanced oracle (CNOT: f(x) = x) ────────────────────────
+# This oracle implements f(x) = x, which is balanced.
+# The CNOT gate entangles q0 and q1, encoding the function.
+
+quantum circuit DeutschJozsa_Balanced:
+    qubit q0
+    qubit q1
+
+    gate pauli_x(target=q1)     # prepare q1 in |1>
+    gate hadamard(target=q0)    # superposition on query qubit
+    gate hadamard(target=q1)    # superposition on ancilla qubit
+
+    gate cnot(control=q0, target=q1)   # oracle: f(x) = x (balanced)
+
+    gate hadamard(target=q0)    # interference — reveals constant vs balanced
+
+    measure q0                  # 0 = constant, 1 = balanced
+
+infer DeutschJozsa_Balanced using quantum(shots=1024)
+
+# ── Constant oracle (identity: f(x) = 0) ────────────────────
+# This oracle implements f(x) = 0, which is constant.
+# No gate needed — the function never flips the ancilla.
+# q0 should always measure 0.
+
+quantum circuit DeutschJozsa_Constant:
+    qubit q0
+    qubit q1
+
+    gate pauli_x(target=q1)     # prepare q1 in |1>
+    gate hadamard(target=q0)    # superposition on query qubit
+    gate hadamard(target=q1)    # superposition on ancilla qubit
+
+    # no oracle gate — f(x) = 0 for all x (constant)
+
+    gate hadamard(target=q0)    # interference
+
+    measure q0                  # should always be 0
+
+infer DeutschJozsa_Constant using quantum(shots=1024)

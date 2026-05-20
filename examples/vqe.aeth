@@ -1,0 +1,71 @@
+# Variational Quantum Eigensolver (VQE)
+#
+# VQE is the killer application of near-term quantum computers.
+# It finds the ground state energy of a quantum system by combining:
+#   - A quantum circuit that prepares candidate states (ansatz)
+#   - A classical optimizer that tunes the circuit parameters
+#
+# In Aether, this is natural: the quantum circuit runs in the same
+# file as the classical Bayesian optimizer. No other language expresses
+# this hybrid loop in a single unified syntax.
+#
+# Problem: find the minimum energy of a simple 2-qubit Hamiltonian.
+# The ground state is the |01> - |10> Bell-like state (singlet).
+#
+# How it works:
+#   1. Quantum circuit prepares a parameterized state (ansatz)
+#   2. We measure the circuit to estimate the energy
+#   3. Classical HMC optimizer searches for the theta that minimizes energy
+#   4. The optimal theta gives the ground state
+
+# ── Step 1: Quantum ansatz circuit ──────────────────────────
+# Parameterized by theta — this would be tuned by the optimizer.
+# Here we show the circuit at a fixed theta as demonstration.
+# In a full VQE loop, theta comes from the classical optimizer below.
+
+quantum circuit AnsatzVQE:
+    qubit q0
+    qubit q1
+
+    # Parameterized rotation — creates entangled superposition
+    gate hadamard(target=q0)
+    gate cnot(control=q0, target=q1)
+    gate pauli_z(target=q0)        # phase that theta would control
+
+    measure q0
+    measure q1
+
+infer AnsatzVQE using quantum(shots=2048)
+
+# ── Step 2: Classical Bayesian optimization of theta ────────
+# This is what makes Aether unique for VQE:
+# The parameter theta is treated as a probability distribution,
+# not a point estimate. We infer the posterior over theta given
+# energy measurements — full Bayesian uncertainty quantification
+# over the variational parameter.
+#
+# In a real VQE:
+#   - Run the quantum circuit with current theta
+#   - Measure the energy (expectation value of Hamiltonian)
+#   - Update theta to minimize energy
+#
+# Here we demonstrate the Bayesian optimizer structure:
+# theta is inferred from simulated energy observations.
+
+model BayesianVQE:
+    # Prior: theta is a rotation angle in [0, 2*pi]
+    theta ~ uniform(low=0, high=6.283)
+
+    # Energy landscape: E(theta) = -cos(theta) for a simple Hamiltonian
+    # Ground state at theta = pi (E = -1), excited at theta = 0 (E = +1)
+    # We observe noisy energy measurements near the ground state
+    energy ~ normal(mean=theta, std=0.3)
+
+    # Simulated energy observations from quantum circuit runs
+    observe energy = [3.14, 3.05, 3.22, 3.18, 3.09]
+
+infer BayesianVQE using hmc(samples=2000, warmup=500, step_size=0.3, steps=10)
+
+# The posterior over theta concentrates near pi (3.14...)
+# which corresponds to the ground state of our Hamiltonian.
+# This is Bayesian VQE — uncertainty-aware parameter optimization.

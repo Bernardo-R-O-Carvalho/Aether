@@ -1,0 +1,57 @@
+# Grover's Search Algorithm
+#
+# Finds a marked item in an unsorted database of N items.
+# Classical search: O(N) queries on average.
+# Grover's algorithm: O(sqrt(N)) queries.
+#
+# For N=4 (2 qubits), classical needs 2.5 queries on average.
+# Grover needs exactly 1 iteration.
+#
+# The marked item here is |11> (both qubits = 1).
+#
+# Circuit structure:
+#   1. Initialize: H on all qubits (equal superposition)
+#   2. Oracle: marks the target state |11> with a phase flip
+#   3. Diffusion: amplifies the marked state's amplitude
+#   4. Measure: marked state appears with high probability
+#
+# After 1 Grover iteration on N=4:
+# P(finding |11>) ≈ 1.0 (exact for this case)
+
+quantum circuit Grover2:
+    qubit q0
+    qubit q1
+
+    # Step 1: Equal superposition over all 4 states
+    gate hadamard(target=q0)
+    gate hadamard(target=q1)
+
+    # Step 2: Oracle — marks |11> with phase flip
+    # Implementation: CZ gate via H-CNOT-H
+    gate hadamard(target=q1)
+    gate cnot(control=q0, target=q1)
+    gate hadamard(target=q1)
+
+    # Step 3: Diffusion operator (inversion about average)
+    # H on all qubits
+    gate hadamard(target=q0)
+    gate hadamard(target=q1)
+    # Phase flip on |00>
+    gate pauli_x(target=q0)
+    gate pauli_x(target=q1)
+    gate hadamard(target=q1)
+    gate cnot(control=q0, target=q1)
+    gate hadamard(target=q1)
+    gate pauli_x(target=q0)
+    gate pauli_x(target=q1)
+    # H on all qubits
+    gate hadamard(target=q0)
+    gate hadamard(target=q1)
+
+    measure q0
+    measure q1
+
+infer Grover2 using quantum(shots=1024)
+
+# Expected result: q0=1, q1=1 with ~100% probability
+# The marked item |11> is found every time.
