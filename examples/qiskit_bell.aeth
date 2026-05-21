@@ -1,0 +1,24 @@
+# Bell Pair via Qiskit backend
+#
+# Same circuit as bell_pair.aeth but compiled to Qiskit
+# and executed on the Aer local simulator.
+#
+# To run on real IBM hardware, change to:
+#   infer BellPair using qiskit(shots=1024, backend="ibm_brisbane")
+#
+# The Qiskit backend shows:
+#   - Circuit depth and gate count
+#   - ASCII circuit diagram
+#   - Same entanglement results as our simulator
+
+quantum circuit BellPair:
+    qubit q0
+    qubit q1
+
+    gate hadamard(target=q0)
+    gate cnot(control=q0, target=q1)
+
+    measure q0
+    measure q1
+
+infer BellPair using qiskit(shots=1024)

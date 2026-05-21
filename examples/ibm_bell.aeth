@@ -1,0 +1,24 @@
+# Bell Pair on IBM Quantum Hardware
+#
+# This runs on a REAL quantum computer — not a simulation.
+# The entanglement you see is physical, not mathematical.
+#
+# ibm_kingston: 156 qubits, us-east
+# ibm_fez:      156 qubits, us-east
+# ibm_marrakesh: 156 qubits, us-east
+#
+# Note: results will show small errors due to real hardware noise.
+# A perfect simulator gives exactly 50/50. Real hardware gives ~48/52.
+# That deviation IS the quantum noise — it's real physics.
+
+quantum circuit BellPair:
+    qubit q0
+    qubit q1
+
+    gate hadamard(target=q0)
+    gate cnot(control=q0, target=q1)
+
+    measure q0
+    measure q1
+
+infer BellPair using qiskit(shots=1024, backend="ibm_kingston")
