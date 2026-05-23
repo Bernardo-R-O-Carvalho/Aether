@@ -358,26 +358,32 @@ class AetherParser:
         Parse: infer <ModelName> using <method>(<params>)
 
         Supported methods:
-          montecarlo(samples=N)                          — rejection sampling
-          mcmc(samples=N, warmup=W, step_size=S)        — Metropolis-Hastings
+          montecarlo(samples=N)                           — rejection sampling
+          mcmc(samples=N, warmup=W, step_size=S)         — Metropolis-Hastings
           hmc(samples=N, warmup=W, step_size=S, steps=L) — Hamiltonian MC
-          quantum(shots=N)                               — quantum simulation
+          quantum(shots=N)                               — Aether state vector
+          qiskit(shots=N)                                — Qiskit Aer simulator
+          qiskit(shots=N, backend="ibm_brisbane")        — IBM real hardware
         """
         self.consume("ID", "infer"); name = self.consume("ID")[1]
         method, n, warmup, step_size, n_steps = "montecarlo", 1000, 500, 0.3, 10
+        backend = None
         if self.match("ID", "using"):
             method = self.consume("ID")[1]
             if self.match("OP", "("):
                 while self.peek()[1] != ")":
                     key = self.consume("ID")[1]; self.consume("OP", "=")
-                    val = self.consume("NUM")[1]
-                    if key in ("samples", "shots"): n = int(val)
-                    elif key == "warmup":     warmup = int(val)
-                    elif key == "step_size":  step_size = float(val)
-                    elif key == "steps":      n_steps = int(val)
+                    if key == "backend":
+                        backend = self.consume("STRING")[1]
+                    else:
+                        val = self.consume("NUM")[1]
+                        if key in ("samples", "shots"): n = int(val)
+                        elif key == "warmup":     warmup = int(val)
+                        elif key == "step_size":  step_size = float(val)
+                        elif key == "steps":      n_steps = int(val)
                     if self.peek()[1] == ",": self.consume("OP", ",")
                 self.consume("OP", ")")
-        return ("infer", name, method, n, warmup, step_size, n_steps)
+        return ("infer", name, method, n, warmup, step_size, n_steps, backend)
 
     def parse_observe(self):
         """
@@ -766,11 +772,12 @@ class AetherRuntime:
 
         elif k == "infer":
             # Route to the appropriate inference engine based on method.
-            _, name, method, n, warmup, step_size, n_steps = stmt
-            if method == "quantum": self.run_quantum(name, n)
-            elif method == "hmc":   self.run_hmc(name, n, warmup, step_size, n_steps)
-            elif method == "mcmc":  self.run_mcmc(name, n, warmup, step_size)
-            else:                   self.run_classical(name, n)
+            _, name, method, n, warmup, step_size, n_steps, backend = stmt
+            if method == "quantum":   self.run_quantum(name, n)
+            elif method == "qiskit":  self.run_qiskit(name, n, backend)
+            elif method == "hmc":     self.run_hmc(name, n, warmup, step_size, n_steps)
+            elif method == "mcmc":    self.run_mcmc(name, n, warmup, step_size)
+            else:                     self.run_classical(name, n)
 
     # ── Classical rejection sampling ─────────────────────────────────────
     #
@@ -886,6 +893,16 @@ class AetherRuntime:
     #  Delegates to quantum.py which implements the state vector simulator.
     #  The same design: circuit body is passed, quantum.py handles execution.
     # ─────────────────────────────────────────────────────────────────────
+
+    def run_qiskit(self, name, shots, backend=None):
+        """
+        Compile and run an Aether circuit via Qiskit.
+        Routes to Aer local simulator or IBM hardware based on backend param.
+        """
+        from qiskit_backend import run_qiskit_circuit
+        if name not in self.circuits:
+            raise AetherError(f"\n  ✗  Quantum circuit '{name}' is not defined")
+        run_qiskit_circuit(name, self.circuits[name], shots=shots, backend=backend)
 
     def run_quantum(self, name, shots):
         from quantum import parse_quantum_model
