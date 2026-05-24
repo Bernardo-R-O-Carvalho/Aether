@@ -1,0 +1,50 @@
+# measure_energy — Medindo ⟨ψ|H|ψ⟩ como primitiva
+# ===================================================
+#
+# Este exemplo demonstra o `measure_energy` como primitiva de linguagem:
+# a energia de um estado quântico qualquer medida em relação a um Hamiltoniano.
+#
+# Isso é algo que nenhuma outra linguagem expõe como uma linha de código.
+# Em Qiskit, seriam dezenas de linhas de boilerplate.
+# Em Aether, é uma instrução.
+#
+# O que este programa faz:
+#   1. Define o Hamiltoniano de H₂ (2 qubits)
+#   2. Prepara um estado de Bell (máximo entrelaçamento)
+#   3. Mede ⟨Bell|H₂|Bell⟩ — energia do estado de Bell no Hamiltoniano de H₂
+#   4. Compara com a energia do estado base
+#
+# O estado de Bell NÃO é o estado de menor energia de H₂.
+# A diferença entre ⟨Bell|H|Bell⟩ e E_ground mostra o quanto o estado de Bell
+# está "acima" do mínimo — isso é a excitação, em Hartree.
+
+# ── Hamiltoniano ────────────────────────────────────────────────────────────
+
+hamiltonian H2:
+    term -1.0523  identity
+    term  0.3979  pauli_z(q0)
+    term -0.3979  pauli_z(q1)
+    term -0.0112  pauli_z(q0) pauli_z(q1)
+    term  0.1809  pauli_x(q0) pauli_x(q1)
+    term  0.1809  pauli_y(q0) pauli_y(q1)
+
+# ── Circuito: estado de Bell ─────────────────────────────────────────────────
+
+quantum circuit BellState:
+    qubit q0
+    qubit q1
+    gate hadamard(target=q0)
+    gate cnot(control=q0, target=q1)
+    measure q0
+    measure q1
+
+# Roda o circuito (mostra a distribuição de resultados)
+infer BellState using quantum(shots=1024)
+
+# Mede a energia do estado de Bell no Hamiltoniano H₂
+# Isso é ⟨Bell|H₂|Bell⟩ — um número real em Hartree
+measure_energy H2
+
+# ── Para comparar: o ground state ────────────────────────────────────────────
+# (descomente para ver o resultado ótimo)
+# infer H2gs using vqe(hamiltonian=H2, shots=1024, iterations=80, step_size=0.2)

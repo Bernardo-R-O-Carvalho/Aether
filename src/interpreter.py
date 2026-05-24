@@ -1,6 +1,6 @@
 """
 Aether (.aeth) — Probabilistic + Quantum Programming Language
-Interpreter v0.3
+Interpreter v0.4
 
 Architecture overview:
   Source code (.aeth)
@@ -8,17 +8,16 @@ Architecture overview:
     → Parser      : tokens into an Abstract Syntax Tree (AST)
     → Runtime     : walks the AST and executes each node
 
-  Two execution modes coexist in the same .aeth file:
+  Three execution modes coexist in the same .aeth file:
     - Classical probabilistic  (model / infer using montecarlo or mcmc)
     - Quantum circuit          (quantum circuit / infer using quantum)
+    - Hybrid VQE               (hamiltonian / infer using vqe)
 
-New in v0.3:
-  1. Multiple observations      observe x = [1, 0, 1, 1, 0]
-  2. For loops                  for item in list: ...
-  3. Basic type system          beta -> [0,1], bernoulli -> {0,1}, etc.
-  4. Useful error messages      AetherError with line context
-  5. Variable scoping           models have isolated scopes
-  6. Imports                    import "other_model.aeth"
+New in v0.4:
+  1. Hamiltonian type           hamiltonian H: term c pauli_z(q0) ...
+  2. measure_energy             measure_energy H  →  prints ⟨ψ|H|ψ⟩
+  3. VQE inference engine       infer Ansatz using vqe(hamiltonian=H, ...)
+  4. Closed hybrid loop         quantum circuit + classical optimizer unified
 """
 
 import re, math, random, sys, os
@@ -238,11 +237,11 @@ class ParseError(AetherError): pass
 # Used to detect the end of a model body.
 # Note: 'for' is intentionally excluded — for loops can appear INSIDE models
 # (hierarchical models). 'for' at top level is also valid but rare.
-BLOCK_KEYWORDS = ("model", "infer", "quantum", "import")
+BLOCK_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy")
 
 # Keywords that end a for loop body (subset — for can't be nested at top level
 # but CAN appear inside a model body)
-TOP_LEVEL_KEYWORDS = ("model", "infer", "quantum", "import")
+TOP_LEVEL_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy")
 
 class AetherParser:
     def __init__(self, tokens, src_lines=None):
@@ -281,13 +280,15 @@ class AetherParser:
         """Dispatch to the appropriate statement parser based on the current token."""
         tok = self.peek()
         if tok[0] == "ID":
-            if tok[1] == "model":   return self.parse_model()
-            if tok[1] == "quantum": return self.parse_quantum()
-            if tok[1] == "infer":   return self.parse_infer()
-            if tok[1] == "observe": return self.parse_observe()
-            if tok[1] == "print":   return self.parse_print()
-            if tok[1] == "for":     return self.parse_for()
-            if tok[1] == "import":  return self.parse_import()
+            if tok[1] == "model":         return self.parse_model()
+            if tok[1] == "quantum":       return self.parse_quantum()
+            if tok[1] == "infer":         return self.parse_infer()
+            if tok[1] == "observe":       return self.parse_observe()
+            if tok[1] == "print":         return self.parse_print()
+            if tok[1] == "for":           return self.parse_for()
+            if tok[1] == "import":        return self.parse_import()
+            if tok[1] == "hamiltonian":   return self.parse_hamiltonian()
+            if tok[1] == "measure_energy": return self.parse_measure_energy()
             return self.parse_assignment_or_sample()
         raise ParseError(f"\n  ✗  Parse error line {tok[2]}: unexpected token '{tok[1]}'")
 
@@ -364,10 +365,13 @@ class AetherParser:
           quantum(shots=N)                               — Aether state vector
           qiskit(shots=N)                                — Qiskit Aer simulator
           qiskit(shots=N, backend="ibm_brisbane")        — IBM real hardware
+          vqe(hamiltonian=H, shots=N, iterations=I, step_size=S) — VQE closed loop
         """
         self.consume("ID", "infer"); name = self.consume("ID")[1]
         method, n, warmup, step_size, n_steps = "montecarlo", 1000, 500, 0.3, 10
         backend = None
+        hamiltonian_name = None
+        iterations = 80
         if self.match("ID", "using"):
             method = self.consume("ID")[1]
             if self.match("OP", "("):
@@ -375,15 +379,19 @@ class AetherParser:
                     key = self.consume("ID")[1]; self.consume("OP", "=")
                     if key == "backend":
                         backend = self.consume("STRING")[1]
+                    elif key == "hamiltonian":
+                        hamiltonian_name = self.consume("ID")[1]
                     else:
                         val = self.consume("NUM")[1]
                         if key in ("samples", "shots"): n = int(val)
-                        elif key == "warmup":     warmup = int(val)
-                        elif key == "step_size":  step_size = float(val)
-                        elif key == "steps":      n_steps = int(val)
+                        elif key == "warmup":      warmup = int(val)
+                        elif key == "step_size":   step_size = float(val)
+                        elif key == "steps":       n_steps = int(val)
+                        elif key == "iterations":  iterations = int(val)
                     if self.peek()[1] == ",": self.consume("OP", ",")
                 self.consume("OP", ")")
-        return ("infer", name, method, n, warmup, step_size, n_steps, backend)
+        return ("infer", name, method, n, warmup, step_size, n_steps, backend,
+                hamiltonian_name, iterations)
 
     def parse_observe(self):
         """
@@ -436,6 +444,86 @@ class AetherParser:
         self.consume("ID", "import")
         path = self.consume("STRING")[1]
         return ("import", path, line)
+
+    def parse_hamiltonian(self):
+        """
+        Parse: hamiltonian <Name>:
+                   term <coeff> identity
+                   term <coeff> pauli_z(q0)
+                   term <coeff> pauli_x(q0) pauli_x(q1)
+                   ...
+
+        Each term is a weighted Pauli string.
+        The coefficient is a numeric literal (can be negative).
+        The Pauli operators: identity, pauli_x(qN), pauli_y(qN), pauli_z(qN).
+        Multiple Pauli operators on one term = tensor product.
+        """
+        line = self.line()
+        self.consume("ID", "hamiltonian")
+        name = self.consume("ID")[1]
+        self.consume("OP", ":")
+        terms = []
+
+        PAULI_OPS = {"identity", "pauli_x", "pauli_y", "pauli_z"}
+
+        while self.peek()[0] != "EOF":
+            tok = self.peek()
+            # End of hamiltonian block when we hit a top-level keyword
+            if tok[0] == "ID" and tok[1] in BLOCK_KEYWORDS and tok[1] != "term":
+                break
+            if tok[0] == "ID" and tok[1] == "term":
+                self.consume("ID", "term")
+                # Parse coefficient — may be negative
+                coeff_tok = self.peek()
+                negative = False
+                if coeff_tok[0] == "OP" and coeff_tok[1] == "-":
+                    self.consume("OP", "-")
+                    negative = True
+                coeff = self.consume("NUM")[1]
+                if negative:
+                    coeff = -coeff
+
+                # Parse one or more Pauli operators for this term
+                ops = {}   # qubit_index -> pauli_name
+                while self.peek()[0] == "ID" and self.peek()[1] in PAULI_OPS:
+                    pauli_name = self.consume("ID")[1]
+                    if pauli_name == "identity":
+                        # identity has no qubit argument
+                        pass
+                    else:
+                        # pauli_x(q0), pauli_z(q1), etc.
+                        self.consume("OP", "(")
+                        qubit_tok = self.consume("ID")[1]  # e.g. "q0", "q1"
+                        # Extract qubit index: "q0" -> 0, "q1" -> 1
+                        if qubit_tok.startswith("q") and qubit_tok[1:].isdigit():
+                            qubit_idx = int(qubit_tok[1:])
+                        else:
+                            raise ParseError(
+                                f"\n  ✗  Parse error line {self.line()}: "
+                                f"expected qubit like 'q0', 'q1', got '{qubit_tok}'"
+                            )
+                        self.consume("OP", ")")
+                        ops[qubit_idx] = pauli_name
+
+                terms.append((coeff, ops))
+            else:
+                # Skip unexpected tokens inside hamiltonian block
+                self.consume()
+
+        return ("hamiltonian", name, terms, line)
+
+    def parse_measure_energy(self):
+        """
+        Parse: measure_energy <HamiltonianName>
+
+        Computes and prints ⟨ψ|H|ψ⟩ for the current quantum state.
+        Must appear after an infer ... using quantum(...) statement.
+        Requires that a quantum circuit has been run and its state stored.
+        """
+        line = self.line()
+        self.consume("ID", "measure_energy")
+        name = self.consume("ID")[1]
+        return ("measure_energy", name, line)
 
     def parse_assignment_or_sample(self):
         """
@@ -596,11 +684,13 @@ class Scope:
 
 class AetherRuntime:
     def __init__(self, base_path=None):
-        self.models   = {}          # name -> body (list of AST nodes)
-        self.circuits = {}          # name -> body (list of quantum AST nodes)
+        self.models       = {}          # name -> body (list of AST nodes)
+        self.circuits     = {}          # name -> body (list of quantum AST nodes)
+        self.hamiltonians = {}          # name -> Hamiltonian object
+        self.last_circuit_state = None  # state vector after last quantum run
         self.global_scope = Scope()
         self.base_path = base_path or os.getcwd()
-        self._imported = set()      # tracks imported paths to prevent cycles
+        self._imported = set()          # tracks imported paths to prevent cycles
 
     def eval_expr(self, node, scope):
         """
@@ -735,6 +825,33 @@ class AetherRuntime:
             # Register the quantum circuit body for later simulation.
             self.circuits[stmt[1]] = stmt[2]
 
+        elif k == "hamiltonian":
+            # Build and register a Hamiltonian from the parsed terms.
+            _, name, terms, line = stmt
+            from hamiltonian import Hamiltonian
+            h = Hamiltonian(name)
+            for coeff, ops in terms:
+                h.add_term(coeff, ops)
+            self.hamiltonians[name] = h
+
+        elif k == "measure_energy":
+            # Print ⟨ψ|H|ψ⟩ for the last-run quantum circuit state.
+            _, name, line = stmt
+            from hamiltonian import exact_energy, print_hamiltonian
+            if name not in self.hamiltonians:
+                raise AetherError(f"\n  ✗  measure_energy: Hamiltonian '{name}' not defined")
+            h = self.hamiltonians[name]
+            if self.last_circuit_state is None:
+                raise AetherError(
+                    f"\n  ✗  measure_energy: no quantum circuit has been run yet\n"
+                    f"     Run a circuit with 'infer <Circuit> using quantum(...)' first"
+                )
+            energy = exact_energy(self.last_circuit_state, h)
+            print(f"\n  ⟁  measure_energy '{name}'")
+            print(f"  {'─'*40}")
+            print(f"  ⟨ψ|H|ψ⟩ = {energy:+.8f} Hartree")
+            print(f"  (exact state vector, no shot noise)\n")
+
         elif k == "for":
             # Iterate over a list, running the body in a child scope per item.
             # Child scope inherits all parent variables (including global_mean,
@@ -772,11 +889,12 @@ class AetherRuntime:
 
         elif k == "infer":
             # Route to the appropriate inference engine based on method.
-            _, name, method, n, warmup, step_size, n_steps, backend = stmt
+            _, name, method, n, warmup, step_size, n_steps, backend, hamiltonian_name, iterations = stmt
             if method == "quantum":   self.run_quantum(name, n)
             elif method == "qiskit":  self.run_qiskit(name, n, backend)
             elif method == "hmc":     self.run_hmc(name, n, warmup, step_size, n_steps)
             elif method == "mcmc":    self.run_mcmc(name, n, warmup, step_size)
+            elif method == "vqe":     self.run_vqe(name, hamiltonian_name, n, iterations, step_size)
             else:                     self.run_classical(name, n)
 
     # ── Classical rejection sampling ─────────────────────────────────────
@@ -905,10 +1023,45 @@ class AetherRuntime:
         run_qiskit_circuit(name, self.circuits[name], shots=shots, backend=backend)
 
     def run_quantum(self, name, shots):
-        from quantum import parse_quantum_model
+        from quantum import parse_quantum_model, build_circuit
         if name not in self.circuits:
             raise AetherError(f"\n  ✗  Quantum circuit '{name}' is not defined")
-        parse_quantum_model(name, self.circuits[name], shots)
+        state = parse_quantum_model(name, self.circuits[name], shots)
+        # Store the final state vector so measure_energy can use it
+        if state is not None:
+            self.last_circuit_state = state
+
+    def run_vqe(self, circuit_name, hamiltonian_name, shots, iterations, step_size):
+        """
+        Run the closed VQE loop:
+          - Uses the Hamiltonian defined by hamiltonian_name
+          - Optimizes a hardware-efficient ansatz (Ry + CNOT + Ry)
+          - Does NOT require a separately defined quantum circuit —
+            the ansatz is built automatically from the Hamiltonian's qubit count
+          - If circuit_name exists as a registered circuit, uses its qubit count
+
+        This is the unified hybrid loop:
+          classical gradient descent ←→ quantum energy measurement
+        """
+        from vqe_engine import run_vqe as _run_vqe, print_vqe_results
+        if hamiltonian_name is None:
+            raise AetherError(
+                "\n  ✗  VQE requires hamiltonian=<Name>\n"
+                "     Example: infer Ansatz using vqe(hamiltonian=H2, shots=1024)"
+            )
+        if hamiltonian_name not in self.hamiltonians:
+            raise AetherError(
+                f"\n  ✗  Hamiltonian '{hamiltonian_name}' not defined\n"
+                f"     Define it with:  hamiltonian {hamiltonian_name}: ..."
+            )
+        h = self.hamiltonians[hamiltonian_name]
+        result = _run_vqe(
+            hamiltonian=h,
+            shots=shots,
+            iterations=iterations,
+            step_size=step_size,
+        )
+        print_vqe_results(circuit_name, result)
 
     def run(self, stmts):
         """Execute a list of top-level AST statements."""

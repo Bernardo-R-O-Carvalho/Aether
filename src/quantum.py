@@ -297,10 +297,36 @@ class QuantumCircuit:
         counts = defaultdict(int)
         for _ in range(shots):
             result = self.run()
-            # Convert result dict to a sorted tuple for use as a dict key
             key = tuple(sorted(result.items()))
             counts[key] += 1
         return dict(counts)
+
+    def get_state_before_measurement(self) -> list:
+        """
+        Execute the circuit up to (but not including) the measure statements,
+        and return the resulting state vector.
+
+        This gives the pure quantum state |ψ⟩ before collapse — needed for
+        measure_energy to compute ⟨ψ|H|ψ⟩ without shot noise.
+        """
+        if self.n_qubits == 0:
+            return []
+        reg = QuantumRegister(self.n_qubits)
+
+        for op in self.operations:
+            if op[0] == "gate":
+                _, gate, target, control, theta = op
+                idx = self.qubits[target]
+                if gate == "cnot" and control:
+                    ctrl_idx = self.qubits[control]
+                    reg.apply_cnot(ctrl_idx, idx)
+                elif gate == "phase" and theta is not None:
+                    reg.apply_single(idx, phase_gate(theta))
+                elif gate in GATES:
+                    reg.apply_single(idx, GATES[gate])
+            # measure operations are skipped — we want pre-measurement state
+
+        return list(reg.state)
 
 
 # ─────────────────────────────────────────────
@@ -310,7 +336,7 @@ class QuantumCircuit:
 #  Takes the AST body of a `quantum circuit` block and runs it.
 # ─────────────────────────────────────────────
 
-def parse_quantum_model(name: str, body: list, shots: int = 1024) -> None:
+def parse_quantum_model(name: str, body: list, shots: int = 1024):
     """
     Build and run a quantum circuit from an Aether AST body.
 
@@ -319,6 +345,8 @@ def parse_quantum_model(name: str, body: list, shots: int = 1024) -> None:
       Pass 2: add gates and measures in order.
 
     Then run for `shots` iterations and print the outcome distribution.
+    Returns the final state vector (before measurement collapse) so that
+    measure_energy can compute ⟨ψ|H|ψ⟩ without running the circuit again.
     """
     circuit = QuantumCircuit(name)
 
@@ -340,12 +368,15 @@ def parse_quantum_model(name: str, body: list, shots: int = 1024) -> None:
 
     if circuit.n_qubits == 0:
         print(f"\n  ✗  No qubits defined in '{name}'")
-        return
+        return None
 
     print(f"\n  ⟁  Aether Quantum — '{name}' ({shots} shots, {circuit.n_qubits} qubits)")
     print(f"  {'─'*46}")
 
     counts = circuit.run_shots(shots)
+
+    # Capture final state vector (without measurement) for measure_energy
+    final_state = circuit.get_state_before_measurement()
 
     # Aggregate per-qubit |0⟩/|1⟩ probabilities across all outcomes
     qubit_ones = defaultdict(int)
@@ -363,7 +394,6 @@ def parse_quantum_model(name: str, body: list, shots: int = 1024) -> None:
             prob1 = ones / shots
             prob0 = 1 - prob1
             bar_len = 20
-            # Visual bar: ░ for |0⟩ probability, █ for |1⟩ probability
             bar1 = "█" * round(prob1 * bar_len)
             bar0 = "░" * (bar_len - round(prob1 * bar_len))
             print(f"  {qubit_name}")
@@ -371,8 +401,6 @@ def parse_quantum_model(name: str, body: list, shots: int = 1024) -> None:
             print()
 
     # Show the most frequent joint outcomes
-    # For entangled systems (Bell pair, GHZ), these reveal the correlations:
-    # e.g. a Bell pair always shows q0=0,q1=0 or q0=1,q1=1 — never mixed.
     top = sorted(counts.items(), key=lambda x: -x[1])[:6]
     print(f"  Top outcomes:")
     for outcome, count in top:
@@ -380,3 +408,24 @@ def parse_quantum_model(name: str, body: list, shots: int = 1024) -> None:
         pct = count / shots * 100
         print(f"    {label:30s}  {count:4d}×  ({pct:.1f}%)")
     print()
+
+    return final_state
+
+
+def build_circuit(name: str, body: list) -> QuantumCircuit:
+    """
+    Build a QuantumCircuit from an AST body without running it.
+    Used by VQE and other engines that need circuit structure.
+    """
+    circuit = QuantumCircuit(name)
+    for stmt in body:
+        if stmt[0] == "qubit":
+            circuit.add_qubit(stmt[1])
+    for stmt in body:
+        kind = stmt[0]
+        if kind == "gate":
+            _, gate_name, target, kwargs = stmt
+            circuit.add_gate(gate_name, target, kwargs.get("control"), kwargs.get("theta"))
+        elif kind == "measure_q":
+            circuit.add_measure(stmt[1])
+    return circuit
