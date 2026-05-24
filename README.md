@@ -42,7 +42,33 @@ Aether is a language. Not a library. Not a framework. A language — with its ow
 | Both in one file | ✗ | ✗ | ✓ |
 | Hierarchical models | ✓ | ✗ | ✓ |
 | HMC inference | ✓ | ✗ | ✓ |
+| IBM hardware execution | ✗ | ✓ | ✓ |
 | Readable without docs | ✗ | ✗ | ✓ |
+
+---
+
+## Runs on real quantum hardware
+
+Aether compiles `.aeth` circuits to Qiskit and executes on IBM Quantum processors.
+
+```
+infer BellPair using qiskit(shots=1024, backend="ibm_kingston")
+```
+
+First execution on IBM Kingston (156 qubits, us-east):
+- **Job ID:** `d88rmaqs46sc73f9rhn0` — verifiable on IBM Quantum
+- **Result:** 93.2% entangled correctly — 6.8% quantum noise from real hardware decoherence
+- **Circuit:** transpiled from depth 3 → depth 8 for native gate set
+
+```
+Top outcomes:
+  q0=0  q1=0    511×  (49.9%)   ← entangled ✓
+  q0=1  q1=1    443×  (43.3%)   ← entangled ✓
+  q0=1  q1=0     64×  ( 6.2%)   ← hardware noise
+  q0=0  q1=1      6×  ( 0.6%)   ← hardware noise
+```
+
+The deviation from perfect 50/50 is not a bug. It is real quantum decoherence — the physical limitation of today's hardware. A perfect simulator gives exactly 50% each. Real hardware gives 93.2%. That 6.8% is physics.
 
 ---
 
@@ -126,7 +152,41 @@ Top outcomes:
   q0=1 q1=0           0×  (0.0%)
 ```
 
-Two entangled qubits. Always `00` or `11`. Never mixed. This is not a simulation of entanglement — this is entanglement, computed correctly using a full complex state vector and proper unitary gate mathematics.
+### Quantum algorithms
+
+Aether expresses canonical quantum algorithms in a fraction of the lines required by Qiskit:
+
+```
+# Deutsch-Jozsa — proves quantum advantage in one query
+quantum circuit DeutschJozsa_Balanced:
+    qubit q0
+    qubit q1
+    gate pauli_x(target=q1)
+    gate hadamard(target=q0)
+    gate hadamard(target=q1)
+    gate cnot(control=q0, target=q1)
+    gate hadamard(target=q0)
+    measure q0
+
+infer DeutschJozsa_Balanced using quantum(shots=1024)
+# Result: q0 = 1 (100%) — balanced function detected in one query
+```
+
+```
+# Grover's search — finds marked item in sqrt(N) steps
+quantum circuit Grover2:
+    qubit q0
+    qubit q1
+    gate hadamard(target=q0)
+    gate hadamard(target=q1)
+    # oracle + diffusion
+    ...
+    measure q0
+    measure q1
+
+infer Grover2 using quantum(shots=1024)
+# Result: q0=1, q1=1 (100%) — marked item found
+```
 
 ### Classical and quantum. Same file.
 
@@ -176,6 +236,8 @@ Aether is not a wrapper. It is built from scratch in pure Python with zero depen
 
 **Quantum simulator** — full complex state vector simulation. Represents n qubits as a 2ⁿ-dimensional vector of complex amplitudes. Implements Hadamard, CNOT, Pauli X/Y/Z, and phase gates using correct unitary matrix mathematics. Collapses the wave function on measurement via the Born rule.
 
+**Qiskit backend** — compiles Aether circuit AST to Qiskit `QuantumCircuit` objects. Routes to Aer local simulator or IBM Quantum hardware based on the `backend` parameter. Handles transpilation to native gate sets automatically.
+
 **Variable scoping** — models run in isolated scopes with a parent chain. Multiple models in one file don't share variables.
 
 **For loops** — iterate over lists within models. Foundation for hierarchical models.
@@ -221,12 +283,11 @@ git clone https://github.com/Bernardo-R-O-Carvalho/Aether
 cd Aether
 python src/interpreter.py examples/bell_pair.aeth
 python src/interpreter.py examples/hierarchical_schools.aeth
-python src/interpreter.py examples/hmc_coin.aeth
+python src/interpreter.py examples/deutsch_jozsa.aeth
+python src/interpreter.py examples/vqe.aeth
 ```
 
 No pip install. No virtual environment. No dependencies. Pure Python 3.8+.
-
----
 
 ## Try it online
 
@@ -250,30 +311,48 @@ infer MyModel using mcmc(samples=5000, warmup=1000, step_size=0.3)
 # Hamiltonian Monte Carlo — hierarchical models, high-dimensional posteriors
 infer MyModel using hmc(samples=2000, warmup=500, step_size=0.1, steps=10)
 
-# Quantum circuit simulation
+# Aether state vector simulator — fast, exact, no dependencies
 infer MyCircuit using quantum(shots=2048)
+
+# Qiskit Aer local simulator — high performance, noise models
+infer MyCircuit using qiskit(shots=1024)
+
+# IBM Quantum real hardware
+infer MyCircuit using qiskit(shots=1024, backend="ibm_kingston")
 ```
 
 **When to use each:**
-- `montecarlo` — fewer than 3 variables, loose observations. Simple and fast.
-- `mcmc` — any model with tight observations or many variables. Use when `montecarlo` gives 0% acceptance.
-- `hmc` — hierarchical models, correlated parameters, high-dimensional posteriors. Dramatically better mixing than MH. Install JAX for maximum performance.
-- `quantum` — quantum circuits with superposition, entanglement, and interference.
+- `montecarlo` — fewer than 3 variables, loose observations.
+- `mcmc` — any model with tight observations or many variables.
+- `hmc` — hierarchical models, correlated parameters. Install JAX for maximum performance.
+- `quantum` — fast local simulation, no setup required.
+- `qiskit` — high-performance local simulation or real IBM hardware.
 
 ### HMC and JAX
 
 HMC uses gradients of the log-probability to navigate the posterior intelligently. Aether supports two backends:
 
-- **JAX** (recommended): exact automatic differentiation. Install with `pip install jax jaxlib`. Aether detects JAX automatically and uses it when available.
-- **Numerical** (default): pure Python finite differences. Zero dependencies. Slower for large models but mathematically correct.
+- **JAX** (recommended): exact automatic differentiation. Install with `pip install jax jaxlib`.
+- **Numerical** (default): pure Python finite differences. Zero dependencies.
 
-```
-# With JAX installed:
-Backend    : JAX (autodiff)
+### IBM Quantum hardware
 
-# Without JAX:
-Backend    : numerical gradients (install jax for better performance)
+To run on real IBM quantum computers:
+
+```bash
+pip install qiskit qiskit-ibm-runtime qiskit-aer
 ```
+
+Save your IBM Quantum account (one time):
+```python
+from qiskit_ibm_runtime import QiskitRuntimeService
+QiskitRuntimeService.save_account(
+    token="YOUR_TOKEN",
+    channel="ibm_quantum_platform"
+)
+```
+
+Get your token at [quantum.ibm.com](https://quantum.ibm.com). Free tier includes 10 minutes of runtime per month.
 
 ---
 
@@ -282,8 +361,6 @@ Backend    : numerical gradients (install jax for better performance)
 ```
 Acceptance : 61.3%  ✓       # MH healthy range: 20-70%
                              # HMC healthy range: 60-90%
-                             # < 10%: reduce step_size
-                             # > 95%: increase step_size
 
 R-hat = 1.001 ✓             # < 1.1: chain converged
                              # > 1.1: run longer or debug model
@@ -300,6 +377,8 @@ The quantum simulator uses full state vectors, which require 2ⁿ memory. Accura
 
 HMC without JAX uses numerical gradients (finite differences), which require 2N model evaluations per gradient computation. For models with many variables, `pip install jax jaxlib` is strongly recommended.
 
+IBM hardware results include real quantum noise — decoherence, gate errors, measurement errors. This is not a limitation of Aether. It is the current state of quantum hardware.
+
 ---
 
 ## Roadmap
@@ -310,24 +389,25 @@ HMC without JAX uses numerical gradients (finite differences), which require 2N 
 - [x] Rejection sampling inference
 - [x] Metropolis-Hastings MCMC
 - [x] R-hat convergence diagnostic
-- [x] ASCII posterior histograms
-- [x] ASCII trace plots
+- [x] ASCII posterior histograms and trace plots
 - [x] Complex state vector quantum simulator
 - [x] Hadamard, CNOT, Pauli X/Y/Z, phase gates
-- [x] For loops — foundation for hierarchical models
-- [x] Hierarchical models with indexed variables (`mean[group] ~ dist(...)`)
-- [x] `range()` built-in for numeric iteration
-- [x] Hamiltonian Monte Carlo (HMC) with leapfrog integration
-- [x] JAX autodiff backend with pure-Python numerical fallback
-- [x] Variable scoping
-- [x] Imports
+- [x] For loops and hierarchical models with indexed variables
+- [x] Hamiltonian Monte Carlo (HMC) with JAX autodiff backend
+- [x] Variable scoping and imports
 - [x] Type system with useful error messages
 - [x] VS Code syntax highlighting
 - [x] Web playground — runs in the browser
+- [x] Qiskit backend — local Aer simulator
+- [x] IBM Quantum hardware execution — verified on ibm_kingston
+- [x] Quantum algorithms — Deutsch-Jozsa, Grover, VQE
+- [ ] Hamiltonians as first-class types
+- [ ] `measure_energy` primitive for VQE
+- [ ] Full VQE loop — closed classical-quantum optimization
+- [ ] Schrödinger equation for H₂ on real hardware
 - [ ] Variational inference
-- [ ] Export to Qiskit / Cirq for real quantum hardware
 - [ ] Plot output — matplotlib histograms and trace plots
-- [ ] Package manager for `.aeth` model libraries
+- [ ] Paper — arXiv
 
 ---
 
