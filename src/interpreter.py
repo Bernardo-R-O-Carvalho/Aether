@@ -473,12 +473,14 @@ class AetherParser:
                 break
             if tok[0] == "ID" and tok[1] == "term":
                 self.consume("ID", "term")
-                # Parse coefficient — may be negative
+                # Parse coefficient — may have explicit + or - sign
                 coeff_tok = self.peek()
                 negative = False
                 if coeff_tok[0] == "OP" and coeff_tok[1] == "-":
                     self.consume("OP", "-")
                     negative = True
+                elif coeff_tok[0] == "OP" and coeff_tok[1] == "+":
+                    self.consume("OP", "+")
                 coeff = self.consume("NUM")[1]
                 if negative:
                     coeff = -coeff

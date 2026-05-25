@@ -115,9 +115,10 @@ def run_vqe(hamiltonian: Hamiltonian, shots: int = 1024,
     if n == 0:
         raise ValueError("Hamiltonian has no qubits")
 
-    # Default: 2 layers of Ry gates (2 * n_qubits parameters)
+    # Default layers: 2 for small (≤4 qubits), 4 for larger molecules
     if n_params is None:
-        n_params = 2 * n
+        n_layers = 4 if n > 4 else 2
+        n_params = n * n_layers
 
     print_hamiltonian(hamiltonian)
 
@@ -242,18 +243,31 @@ def print_vqe_results(name: str, result: dict):
         print(f"  iter 0{' '*(width-8)}iter {len(history)-1}")
         print()
 
-    # Compare to known result if this looks like H2
-    known_h2 = -1.9153   # exact FCI eigenvalue for these STO-3G coefficients
+    # Molecular benchmarks — exact FCI values for known molecules
+    BENCHMARKS = {
+        # (n_qubits, exact_energy, name)
+        # H₂ STO-3G (2-qubit reduction, Peruzzo 2014 coefficients)
+        2: (-1.9153, "H₂ (STO-3G, 2-qubit)"),
+        # LiH STO-3G (frozen core, 6 qubits, OpenFermion/PySCF)
+        6: (-7.86418329, "LiH (STO-3G, frozen core, 6-qubit)"),
+        # BeH₂ STO-3G (frozen core, 8 qubits, OpenFermion/PySCF)
+        8: (-15.56674241, "BeH₂ (STO-3G, frozen core, 8-qubit)"),
+    }
+
+    n = result["n_qubits"]
     e = result["energy_exact"]
-    if abs(e - known_h2) < 0.2:
-        error = abs(e - known_h2) * 1000  # in milliHartree
-        print(f"  ── H₂ benchmark ──────────────────────────────────")
-        print(f"  Aether VQE:    {e:+.6f} Hartree")
-        print(f"  Exact (FCI):   {known_h2:+.6f} Hartree")
+
+    if n in BENCHMARKS:
+        known_e, mol_name = BENCHMARKS[n]
+        error = abs(e - known_e) * 1000  # milliHartree
+        chem_acc = 1.6
+        print(f"  ── Molecular benchmark ────────────────────────────")
+        print(f"  Molecule:      {mol_name}")
+        print(f"  Aether VQE:    {e:+.8f} Hartree")
+        print(f"  Exact (FCI):   {known_e:+.8f} Hartree")
         print(f"  Error:          {error:.2f} milliHartree")
-        chem_acc = 1.6  # milliHartree (chemical accuracy = 1 kcal/mol)
         if error < chem_acc:
             print(f"  ✓  Chemical accuracy achieved (< {chem_acc} mH)")
         else:
-            print(f"  ↑  Try more iterations or a deeper ansatz")
+            print(f"  ↑  {error/chem_acc:.1f}× above chemical accuracy — try more iterations")
         print()

@@ -349,59 +349,56 @@ def prepare_ansatz_state(thetas: list, n_qubits: int) -> list:
     """
     Prepare a hardware-efficient ansatz state vector given parameters theta.
 
-    For 2 qubits: Ry(θ₀) ⊗ Ry(θ₁), then CNOT, then Ry(θ₂) ⊗ Ry(θ₃).
-    For 1 qubit:  Ry(θ₀).
-    For n qubits: generalizes the above pattern.
+    For n qubits with p layers of (Ry rotations + CNOT entangling):
+      Layer 1: Ry(θ₀)...Ry(θₙ₋₁)
+      Entangling: CNOT(0,1), CNOT(1,2), ..., CNOT(n-2, n-1)
+      Layer 2: Ry(θₙ)...Ry(θ₂ₙ₋₁)
+      Entangling: CNOT again
+      ...and so on for each layer.
 
-    This is a pure state preparation (no measurement) — returns the full
-    state vector so we can compute ⟨ψ|H|ψ⟩ exactly.
+    Number of parameters = n_qubits * n_layers.
+    More layers = more expressive ansatz = needed for larger molecules.
     """
     dim = 2 ** n_qubits
     state = [complex(0)] * dim
     state[0] = complex(1)   # |00...0⟩
 
-    # Layer 1: Ry rotations on each qubit
-    for q in range(min(n_qubits, len(thetas))):
-        theta = thetas[q]
-        mat = ry_gate(theta)
-        q_bit = n_qubits - 1 - q
-        step = 1 << q_bit
-        new_state = [complex(0)] * dim
-        for i in range(dim):
-            bit = (i >> q_bit) & 1
-            partner = i ^ step
-            if bit == 0:
-                new_state[i]       += mat[0][0]*state[i] + mat[0][1]*state[partner]
-                new_state[partner] += mat[1][0]*state[i] + mat[1][1]*state[partner]
-        state = new_state
+    # Determine number of layers from parameter count
+    n_params = len(thetas)
+    n_layers = max(1, n_params // n_qubits)
 
-    # Entangling layer: CNOT between adjacent qubits
-    if n_qubits >= 2:
-        for ctrl in range(n_qubits - 1):
-            tgt = ctrl + 1
-            ctrl_bit = n_qubits - 1 - ctrl
-            tgt_bit  = n_qubits - 1 - tgt
-            new_state = list(state)
+    param_idx = 0
+    for layer in range(n_layers):
+        # Ry rotation layer
+        for q in range(n_qubits):
+            if param_idx >= n_params:
+                break
+            theta = thetas[param_idx]
+            param_idx += 1
+            mat = ry_gate(theta)
+            q_bit = n_qubits - 1 - q
+            step = 1 << q_bit
+            new_state = [complex(0)] * dim
             for i in range(dim):
-                if (i >> ctrl_bit) & 1:   # control is |1⟩
-                    flipped = i ^ (1 << tgt_bit)
-                    new_state[i], new_state[flipped] = state[flipped], state[i]
+                bit = (i >> q_bit) & 1
+                partner = i ^ step
+                if bit == 0:
+                    new_state[i]       += mat[0][0]*state[i] + mat[0][1]*state[partner]
+                    new_state[partner] += mat[1][0]*state[i] + mat[1][1]*state[partner]
             state = new_state
 
-    # Layer 2: second round of Ry rotations (if enough parameters provided)
-    for q in range(min(n_qubits, len(thetas) - n_qubits)):
-        theta = thetas[n_qubits + q]
-        mat = ry_gate(theta)
-        q_bit = n_qubits - 1 - q
-        step = 1 << q_bit
-        new_state = [complex(0)] * dim
-        for i in range(dim):
-            bit = (i >> q_bit) & 1
-            partner = i ^ step
-            if bit == 0:
-                new_state[i]       += mat[0][0]*state[i] + mat[0][1]*state[partner]
-                new_state[partner] += mat[1][0]*state[i] + mat[1][1]*state[partner]
-        state = new_state
+        # Entangling layer (skip after last rotation layer)
+        if layer < n_layers - 1 or n_layers == 1:
+            for ctrl in range(n_qubits - 1):
+                tgt = ctrl + 1
+                ctrl_bit = n_qubits - 1 - ctrl
+                tgt_bit  = n_qubits - 1 - tgt
+                new_state = list(state)
+                for i in range(dim):
+                    if (i >> ctrl_bit) & 1:
+                        flipped = i ^ (1 << tgt_bit)
+                        new_state[i], new_state[flipped] = state[flipped], state[i]
+                state = new_state
 
     return state
 
