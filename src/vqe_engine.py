@@ -1,43 +1,15 @@
 """
-Aether VQE Engine — Closed classical-quantum optimization loop
-==============================================================
+Aether VQE Engine
+=================
 
-What is VQE?
-  The Variational Quantum Eigensolver (VQE) finds the ground state energy
-  of a Hamiltonian H by minimizing ⟨ψ(θ)|H|ψ(θ)⟩ over circuit parameters θ.
+Loop fechado: medição quântica de energia + otimização clássica.
 
-  The variational principle guarantees:
-    ⟨ψ(θ)|H|ψ(θ)⟩ ≥ E_ground  for all θ
-
-  So the minimum over θ is the best achievable approximation to E_ground
-  given the ansatz circuit family.
-
-The hybrid loop:
-  ┌─────────────────────────────────────────────┐
-  │  Classical computer                         │
-  │    θ → parameter update (gradient descent)  │
-  │              ↑                              │
-  │         energy E(θ)                         │
-  │              ↑                              │
-  │  Quantum computer                           │
-  │    prepare |ψ(θ)⟩, measure ⟨H⟩             │
-  └─────────────────────────────────────────────┘
-
-Optimizer:
-  We use gradient descent with numerical gradients (parameter shift rule).
-  The parameter shift rule is the standard method for quantum circuits:
-    ∂E/∂θ_k ≈ [E(θ + π/2 * eₖ) - E(θ - π/2 * eₖ)] / 2
-
-  This is exact (not approximate) for Pauli rotation gates — an important
-  property that makes it compatible with real quantum hardware.
-
-Usage in .aeth:
-  infer Ansatz using vqe(
-      hamiltonian = H2,
-      shots       = 1024,
-      iterations  = 80,
-      step_size   = 0.3
-  )
+Dois modos:
+  UCCSD  — para moléculas conhecidas (LiH, BeH2, H2O)
+           usa OpenFermion + scipy BFGS
+           exato, sem aproximação de Trotter
+  Hardware-efficient — para H2 e Hamiltonianos genéricos
+           ansatz Ry+CNOT, parameter shift rule, gradient descent
 """
 
 import math
@@ -47,227 +19,242 @@ from hamiltonian import (
     measure_energy_shots, print_hamiltonian
 )
 
-
-# ─────────────────────────────────────────────
-#  Parameter shift rule gradient
-#
-#  For a circuit with Pauli rotation gates R(θ) = exp(-iθP/2),
-#  the gradient is exact (not finite difference):
-#    ∂⟨H⟩/∂θ_k = [⟨H⟩(θ_k + π/2) - ⟨H⟩(θ_k - π/2)] / 2
-#
-#  We use the exact state vector for optimization (faster, no shot noise).
-#  Shot noise is added when reporting the final measurement.
-# ─────────────────────────────────────────────
-
-def parameter_shift_gradient(thetas: list, hamiltonian: Hamiltonian) -> list:
-    """
-    Compute gradient of ⟨H⟩ with respect to all parameters θ_k
-    using the parameter shift rule.
-
-    Returns: list of partial derivatives ∂⟨H⟩/∂θ_k
-    """
-    n = hamiltonian.n_qubits()
-    grads = []
-    shift = math.pi / 2
-
-    for k in range(len(thetas)):
-        # θ + π/2 in direction k
-        thetas_plus = list(thetas)
-        thetas_plus[k] += shift
-        state_plus = prepare_ansatz_state(thetas_plus, n)
-        e_plus = exact_energy(state_plus, hamiltonian)
-
-        # θ - π/2 in direction k
-        thetas_minus = list(thetas)
-        thetas_minus[k] -= shift
-        state_minus = prepare_ansatz_state(thetas_minus, n)
-        e_minus = exact_energy(state_minus, hamiltonian)
-
-        grads.append((e_plus - e_minus) / 2.0)
-
-    return grads
+# Molecular benchmarks: n_qubits -> (fci_energy, label)
+BENCHMARKS = {
+    2: (-1.9153,       "H₂ (STO-3G, 2-qubit parity reduction)"),
+    6: (-7.86418329,   "LiH (STO-3G, frozen core, 6-qubit)"),
+    8: (-15.56674241,  "BeH₂ (STO-3G, frozen core, 8-qubit)"),
+}
 
 
-# ─────────────────────────────────────────────
-#  VQE optimizer
-# ─────────────────────────────────────────────
-
-def run_vqe(hamiltonian: Hamiltonian, shots: int = 1024,
+def run_vqe(hamiltonian, shots: int = 1024,
             iterations: int = 80, step_size: float = 0.3,
-            n_params: int = None) -> dict:
+            n_params: int = None, ansatz: str = "auto") -> dict:
     """
-    Run the closed VQE loop: quantum energy measurement + classical gradient descent.
+    Run the closed VQE loop.
 
-    Args:
-        hamiltonian:  Aether Hamiltonian object
-        shots:        number of shots for final energy estimate
-        iterations:   number of optimization steps
-        step_size:    gradient descent learning rate
-        n_params:     number of variational parameters (default: 2 * n_qubits)
-
-    Returns dict with:
-        thetas_opt:   optimized parameters
-        energy_opt:   final ground state energy estimate
-        energy_exact: exact energy at optimal parameters (noiseless)
-        history:      list of (iteration, energy) tuples
+    ansatz: "auto"     — UCCSD for LiH/BeH2/H2O, hardware-efficient otherwise
+            "uccsd"    — force UCCSD
+            "hardware" — force hardware-efficient
     """
+    from uccsd import MOLECULE_CONFIGS
+
     n = hamiltonian.n_qubits()
     if n == 0:
         raise ValueError("Hamiltonian has no qubits")
 
-    # Default layers: 2 for small (≤4 qubits), 4 for larger molecules
-    if n_params is None:
-        n_layers = 4 if n > 4 else 2
-        n_params = n * n_layers
+    # ── Select ansatz ──────────────────────────────────────
+    use_uccsd = False
+    if ansatz == "uccsd" or (ansatz == "auto" and n in MOLECULE_CONFIGS):
+        try:
+            from uccsd import make_uccsd_for_hamiltonian
+            uccsd_obj = make_uccsd_for_hamiltonian(hamiltonian)
+            use_uccsd = True
+        except Exception as e:
+            print(f"  ⚠  UCCSD unavailable ({e}), using hardware-efficient")
+            use_uccsd = False
 
     print_hamiltonian(hamiltonian)
+
+    if use_uccsd:
+        return _run_vqe_uccsd(hamiltonian, uccsd_obj, shots, iterations)
+    else:
+        return _run_vqe_hardware(hamiltonian, shots, iterations, step_size, n_params)
+
+
+# ─────────────────────────────────────────────
+#  UCCSD path — scipy BFGS + exact matrix exp
+# ─────────────────────────────────────────────
+
+def _run_vqe_uccsd(hamiltonian, uccsd_obj, shots, iterations):
+    from scipy.optimize import minimize
+    import numpy as np
+
+    n = hamiltonian.n_qubits()
 
     print(f"  ⟁  Aether VQE — '{hamiltonian.name}'")
     print(f"  {'─'*50}")
     print(f"  Qubits:     {n}")
-    print(f"  Parameters: {n_params}  (Ry ansatz, {n_params // n} layers)")
+    print(f"  Ansatz:     UCCSD ({uccsd_obj.n_params} params, exact matrix exp)")
+    print(f"  Optimizer:  BFGS (scipy)")
+    print(f"  Shots:      {shots}  (final estimate)")
+    print()
+
+    history = []
+    call_count = [0]
+
+    def energy_fn(thetas):
+        call_count[0] += 1
+        state = uccsd_obj.prepare(list(thetas))
+        e = exact_energy(state, hamiltonian)
+        history.append((call_count[0], e))
+        if call_count[0] % 20 == 1:
+            print(f"  {call_count[0]:>5}  {e:>+18.8f}")
+        return e
+
+    # Warm start with CCSD amplitudes
+    x0 = np.array(uccsd_obj.initial_params())
+    print(f"  {'Call':>5}  {'Energy (exact)':>18}")
+    print(f"  {'─'*26}")
+
+    result = minimize(
+        energy_fn, x0,
+        method='BFGS',
+        options={'maxiter': iterations, 'gtol': 1e-7}
+    )
+
+    print(f"  {'─'*26}")
+    print(f"  BFGS converged: {result.success}  ({call_count[0]} evaluations)")
+    print()
+
+    best_thetas = list(result.x)
+    opt_state = uccsd_obj.prepare(best_thetas)
+    energy_exact = exact_energy(opt_state, hamiltonian)
+    energy_shots_val = measure_energy_shots(opt_state, hamiltonian, shots=shots)
+
+    return {
+        "thetas_opt":   best_thetas,
+        "energy_opt":   energy_shots_val,
+        "energy_exact": energy_exact,
+        "history":      history,
+        "n_qubits":     n,
+        "n_params":     uccsd_obj.n_params,
+        "ansatz":       f"UCCSD ({uccsd_obj.n_params} params)",
+    }
+
+
+# ─────────────────────────────────────────────
+#  Hardware-efficient path — gradient descent
+# ─────────────────────────────────────────────
+
+def _run_vqe_hardware(hamiltonian, shots, iterations, step_size, n_params):
+    n = hamiltonian.n_qubits()
+    n_layers = 4 if n > 4 else 2
+    effective_n_params = n_params or (n * n_layers)
+
+    print(f"  ⟁  Aether VQE — '{hamiltonian.name}'")
+    print(f"  {'─'*50}")
+    print(f"  Qubits:     {n}")
+    print(f"  Ansatz:     Hardware-efficient (Ry+CNOT, {n_layers} layers)")
+    print(f"  Parameters: {effective_n_params}")
     print(f"  Iterations: {iterations}")
     print(f"  Step size:  {step_size}")
     print(f"  Shots:      {shots}  (final estimate)")
     print()
 
-    # Initialize parameters randomly near 0
-    # Near 0 → near |00...0⟩, a known easy starting state
     random.seed(42)
-    thetas = [random.gauss(0, 0.1) for _ in range(n_params)]
+    thetas = [random.gauss(0, 0.1) for _ in range(effective_n_params)]
 
     history = []
     best_energy = float("inf")
     best_thetas = list(thetas)
-
-    # Optimization loop with adaptive step size (simple momentum)
-    velocity = [0.0] * n_params
+    velocity = [0.0] * effective_n_params
     momentum = 0.9
 
     print(f"  {'Iter':>5}  {'Energy (exact)':>18}  {'ΔE':>12}  {'|∇E|':>10}")
     print(f"  {'─'*52}")
 
     prev_energy = None
+    shift = math.pi / 2
+
     for it in range(iterations):
-        # Compute energy at current parameters
         state = prepare_ansatz_state(thetas, n)
         energy = exact_energy(state, hamiltonian)
-
         history.append((it, energy))
 
         if energy < best_energy:
             best_energy = energy
             best_thetas = list(thetas)
 
-        # Gradient via parameter shift rule
-        grads = parameter_shift_gradient(thetas, hamiltonian)
-        grad_norm = math.sqrt(sum(g**2 for g in grads))
+        grads = []
+        for k in range(effective_n_params):
+            tp = list(thetas); tp[k] += shift
+            tm = list(thetas); tm[k] -= shift
+            ep = exact_energy(prepare_ansatz_state(tp, n), hamiltonian)
+            em = exact_energy(prepare_ansatz_state(tm, n), hamiltonian)
+            grads.append((ep - em) / 2.0)
 
-        # Progress display (every 5 iterations + first + last)
-        delta_str = ""
-        if prev_energy is not None:
-            delta = energy - prev_energy
-            delta_str = f"{delta:+.6f}"
+        grad_norm = math.sqrt(sum(g**2 for g in grads))
+        delta_str = f"{energy - prev_energy:+.6f}" if prev_energy is not None else ""
+
         if it % 5 == 0 or it == iterations - 1:
             print(f"  {it:>5}  {energy:>+18.8f}  {delta_str:>12}  {grad_norm:>10.6f}")
 
-        # Gradient descent with momentum
-        for k in range(n_params):
+        for k in range(effective_n_params):
             velocity[k] = momentum * velocity[k] - step_size * grads[k]
             thetas[k] += velocity[k]
 
         prev_energy = energy
-
-        # Early stopping if converged
         if grad_norm < 1e-6:
-            print(f"  {'─'*52}")
-            print(f"  Converged at iteration {it} (|∇E| < 1e-6)")
+            print(f"  Converged at iteration {it}")
             break
 
     print(f"  {'─'*52}")
     print()
 
-    # Final measurement with shots (simulates real quantum hardware)
     opt_state = prepare_ansatz_state(best_thetas, n)
     energy_exact = exact_energy(opt_state, hamiltonian)
-    energy_shots = measure_energy_shots(opt_state, hamiltonian, shots=shots)
+    energy_shots_val = measure_energy_shots(opt_state, hamiltonian, shots=shots)
 
     return {
         "thetas_opt":   best_thetas,
-        "energy_opt":   energy_shots,
+        "energy_opt":   energy_shots_val,
         "energy_exact": energy_exact,
         "history":      history,
         "n_qubits":     n,
-        "n_params":     n_params,
+        "n_params":     effective_n_params,
+        "ansatz":       f"Hardware-efficient (Ry+CNOT, {n_layers} layers)",
     }
 
 
+# ─────────────────────────────────────────────
+#  Print results
+# ─────────────────────────────────────────────
+
 def print_vqe_results(name: str, result: dict):
-    """Print the final VQE results in Aether's visual style."""
     print(f"  ⟁  VQE Results — '{name}'")
     print(f"  {'─'*50}")
+    print(f"  Ansatz:                           {result.get('ansatz','unknown')}")
     print(f"  Ground state energy (shot-based): {result['energy_opt']:+.8f} Hartree")
     print(f"  Ground state energy (exact sim):  {result['energy_exact']:+.8f} Hartree")
     print()
-    print(f"  Optimal parameters (θ):")
-    for i, theta in enumerate(result["thetas_opt"]):
-        print(f"    θ[{i}] = {theta:+.6f}  ({theta/math.pi:+.4f}π)")
-    print()
 
-    # Energy convergence plot (ASCII)
+    # Convergence plot
     history = result["history"]
     if len(history) > 1:
         energies = [e for _, e in history]
         e_min = min(energies)
         e_max = max(energies)
         e_range = e_max - e_min if e_max != e_min else 1.0
-        width = 50
-        height = 8
-
-        print(f"  Energy convergence:")
-        # Downsample to width points
+        width, height = 50, 8
         step = max(1, len(energies) // width)
         sampled = energies[::step][:width]
-
-        rows = []
+        print(f"  Energy convergence:")
         for row in range(height):
             threshold = e_max - (row / (height - 1)) * e_range
-            line = ""
-            for e in sampled:
-                line += "█" if e >= threshold - e_range/(2*height) else " "
-            rows.append(f"  {threshold:+.4f} │{line}")
-
-        for r in rows:
-            print(r)
+            line = "".join(
+                "█" if e >= threshold - e_range/(2*height) else " "
+                for e in sampled
+            )
+            print(f"  {threshold:+.4f} │{line}")
         print(f"  {'─'*(width+12)}")
-        print(f"  iter 0{' '*(width-8)}iter {len(history)-1}")
+        print(f"  call 0{' '*(width-8)}call {len(history)-1}")
         print()
 
-    # Molecular benchmarks — exact FCI values for known molecules
-    BENCHMARKS = {
-        # (n_qubits, exact_energy, name)
-        # H₂ STO-3G (2-qubit reduction, Peruzzo 2014 coefficients)
-        2: (-1.9153, "H₂ (STO-3G, 2-qubit)"),
-        # LiH STO-3G (frozen core, 6 qubits, OpenFermion/PySCF)
-        6: (-7.86418329, "LiH (STO-3G, frozen core, 6-qubit)"),
-        # BeH₂ STO-3G (frozen core, 8 qubits, OpenFermion/PySCF)
-        8: (-15.56674241, "BeH₂ (STO-3G, frozen core, 8-qubit)"),
-    }
-
+    # Molecular benchmark
     n = result["n_qubits"]
     e = result["energy_exact"]
-
     if n in BENCHMARKS:
         known_e, mol_name = BENCHMARKS[n]
-        error = abs(e - known_e) * 1000  # milliHartree
+        error = abs(e - known_e) * 1000
         chem_acc = 1.6
         print(f"  ── Molecular benchmark ────────────────────────────")
         print(f"  Molecule:      {mol_name}")
         print(f"  Aether VQE:    {e:+.8f} Hartree")
         print(f"  Exact (FCI):   {known_e:+.8f} Hartree")
-        print(f"  Error:          {error:.2f} milliHartree")
+        print(f"  Error:          {error:.4f} milliHartree")
         if error < chem_acc:
             print(f"  ✓  Chemical accuracy achieved (< {chem_acc} mH)")
         else:
-            print(f"  ↑  {error/chem_acc:.1f}× above chemical accuracy — try more iterations")
+            print(f"  ↑  {error/chem_acc:.1f}× above chemical accuracy")
         print()
