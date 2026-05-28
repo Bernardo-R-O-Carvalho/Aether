@@ -1,0 +1,112 @@
+# Hubbard Model — Ground State via VQE
+# ======================================
+#
+# The Hubbard model is the central model of condensed matter physics.
+# It captures the competition between two physical effects:
+#
+#   t — kinetic energy: electrons hop between neighboring sites
+#   U — potential energy: electrons repel each other on the same site
+#
+# H = -t Σ_{<i,j>,σ} (a†_{i,σ} a_{j,σ} + h.c.) + U Σ_i n_{i,↑} n_{i,↓}
+#
+# The ratio U/t controls the physics:
+#   U/t → 0   : free electrons, metallic behavior
+#   U/t → ∞   : Mott insulator, electrons localize
+#   U/t ~ 4-8 : strongly correlated regime — superconductivity candidate
+#
+# Why the Hubbard model matters for superconductivity:
+#   High-temperature superconductors (cuprates, discovered 1986) are
+#   believed to be described by the 2D Hubbard model in the strongly
+#   correlated regime. The ground state of the 2D Hubbard model at
+#   half-filling and large U/t is an antiferromagnetic Mott insulator.
+#   Doped away from half-filling, it may become superconducting.
+#   This connection is not proven — it is one of the central open
+#   problems in condensed matter physics.
+#
+# What this program does:
+#   Solves the ground state of the Hubbard model on small lattices
+#   using VQE. This is exactly the kind of calculation that would
+#   need to scale to larger lattices (via fault-tolerant quantum hardware)
+#   to address high-temperature superconductivity.
+#
+# Lattices:
+#   Hubbard2x1 — 2-site chain, 4 qubits,  11 Pauli terms
+#   Hubbard2x2 — 4-site lattice, 8 qubits, 29 Pauli terms
+#
+# Ground states (exact diagonalization):
+#   Hubbard2x1 (t=1, U=4, 2e): -1.00000000
+#   Hubbard2x2 (t=1, U=4, 4e): -3.41855072
+#
+# Coefficients generated via OpenFermion, Jordan-Wigner encoding.
+# Parameters: t=1.0 (hopping), U=4.0 (on-site repulsion), open boundary.
+
+# ── 2-site chain ──────────────────────────────────────────────────────
+
+hamiltonian Hubbard2x1:
+    term +2.00000000  identity
+    term +1.00000000  pauli_z(q2)  pauli_z(q3)
+    term +1.00000000  pauli_z(q0)  pauli_z(q1)
+    term -1.00000000  pauli_z(q3)
+    term -1.00000000  pauli_z(q2)
+    term -1.00000000  pauli_z(q1)
+    term -1.00000000  pauli_z(q0)
+    term -0.50000000  pauli_y(q1)  pauli_z(q2)  pauli_y(q3)
+    term -0.50000000  pauli_x(q1)  pauli_z(q2)  pauli_x(q3)
+    term -0.50000000  pauli_y(q0)  pauli_z(q1)  pauli_y(q2)
+    term -0.50000000  pauli_x(q0)  pauli_z(q1)  pauli_x(q2)
+
+infer Hubbard2x1gs using vqe(
+    hamiltonian = Hubbard2x1,
+    shots       = 2048,
+    iterations  = 100,
+    step_size   = 0.2
+)
+
+# ── 2x2 lattice ───────────────────────────────────────────────────────
+
+hamiltonian Hubbard2x2:
+    term +4.00000000  identity
+    term +1.00000000  pauli_z(q6)  pauli_z(q7)
+    term +1.00000000  pauli_z(q4)  pauli_z(q5)
+    term +1.00000000  pauli_z(q2)  pauli_z(q3)
+    term +1.00000000  pauli_z(q0)  pauli_z(q1)
+    term -1.00000000  pauli_z(q7)
+    term -1.00000000  pauli_z(q6)
+    term -1.00000000  pauli_z(q5)
+    term -1.00000000  pauli_z(q4)
+    term -1.00000000  pauli_z(q3)
+    term -1.00000000  pauli_z(q2)
+    term -1.00000000  pauli_z(q1)
+    term -1.00000000  pauli_z(q0)
+    term -0.50000000  pauli_y(q5)  pauli_z(q6)  pauli_y(q7)
+    term -0.50000000  pauli_x(q5)  pauli_z(q6)  pauli_x(q7)
+    term -0.50000000  pauli_y(q4)  pauli_z(q5)  pauli_y(q6)
+    term -0.50000000  pauli_x(q4)  pauli_z(q5)  pauli_x(q6)
+    term -0.50000000  pauli_y(q3)  pauli_z(q4)  pauli_z(q5)  pauli_z(q6)  pauli_y(q7)
+    term -0.50000000  pauli_x(q3)  pauli_z(q4)  pauli_z(q5)  pauli_z(q6)  pauli_x(q7)
+    term -0.50000000  pauli_y(q2)  pauli_z(q3)  pauli_z(q4)  pauli_z(q5)  pauli_y(q6)
+    term -0.50000000  pauli_x(q2)  pauli_z(q3)  pauli_z(q4)  pauli_z(q5)  pauli_x(q6)
+    term -0.50000000  pauli_y(q1)  pauli_z(q2)  pauli_z(q3)  pauli_z(q4)  pauli_y(q5)
+    term -0.50000000  pauli_y(q1)  pauli_z(q2)  pauli_y(q3)
+    term -0.50000000  pauli_x(q1)  pauli_z(q2)  pauli_z(q3)  pauli_z(q4)  pauli_x(q5)
+    term -0.50000000  pauli_x(q1)  pauli_z(q2)  pauli_x(q3)
+    term -0.50000000  pauli_y(q0)  pauli_z(q1)  pauli_z(q2)  pauli_z(q3)  pauli_y(q4)
+    term -0.50000000  pauli_y(q0)  pauli_z(q1)  pauli_y(q2)
+    term -0.50000000  pauli_x(q0)  pauli_z(q1)  pauli_z(q2)  pauli_z(q3)  pauli_x(q4)
+    term -0.50000000  pauli_x(q0)  pauli_z(q1)  pauli_x(q2)
+
+infer Hubbard2x2gs using vqe(
+    hamiltonian = Hubbard2x2,
+    shots       = 2048,
+    iterations  = 300,
+    step_size   = 0.1
+)
+
+# Note: the 2x2 Hubbard model (8 qubits) requires an ansatz that captures
+# long-range correlations between non-adjacent sites. The hardware-efficient
+# ansatz (Ry+CNOT between adjacent qubits only) is insufficient.
+# Next step: implement a lattice-aware ansatz with entangling gates
+# between all pairs of sites (full connectivity), or use QAOA-inspired
+# circuits designed for the Hubbard model geometry.
+# This is an active research area — the 2x2 result here demonstrates
+# Aether's ability to express the problem; the ansatz is the open question.

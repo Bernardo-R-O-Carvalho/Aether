@@ -33,9 +33,9 @@ except ImportError:
 
 # Known molecule configs: n_qubits -> (n_electrons, n_params)
 MOLECULE_CONFIGS = {
-    6:  (2, 5,  "LiH (frozen core)"),   # 5 singlet UCCSD params (OpenFermion)
-    8:  (4, 14, "BeH₂ (frozen core)"),  # 14 singlet UCCSD params
-    10: (8, 15, "H₂O (frozen core)"),
+    6:  (2, "LiH (frozen core)"),
+    8:  (4, "BeH₂ (frozen core)"),
+    10: (8, "H₂O (frozen core)"),
 }
 
 

@@ -20,10 +20,17 @@ from hamiltonian import (
 )
 
 # Molecular benchmarks: n_qubits -> (fci_energy, label)
+# For Hubbard: keyed by (n_qubits, "hubbard") — handled separately
 BENCHMARKS = {
     2: (-1.9153,       "H₂ (STO-3G, 2-qubit parity reduction)"),
     6: (-7.86418329,   "LiH (STO-3G, frozen core, 6-qubit)"),
     8: (-15.56674241,  "BeH₂ (STO-3G, frozen core, 8-qubit)"),
+}
+
+# Hubbard benchmarks: identified by Hamiltonian name prefix
+HUBBARD_BENCHMARKS = {
+    "Hubbard2x1": (-1.00000000, "Hubbard 2×1 chain (t=1, U=4, 2e, 4 qubits)"),
+    "Hubbard2x2": (-3.41855072, "Hubbard 2×2 lattice (t=1, U=4, 4e, 8 qubits)"),
 }
 
 
@@ -113,13 +120,14 @@ def _run_vqe_uccsd(hamiltonian, uccsd_obj, shots, iterations):
     energy_shots_val = measure_energy_shots(opt_state, hamiltonian, shots=shots)
 
     return {
-        "thetas_opt":   best_thetas,
-        "energy_opt":   energy_shots_val,
-        "energy_exact": energy_exact,
-        "history":      history,
-        "n_qubits":     n,
-        "n_params":     uccsd_obj.n_params,
-        "ansatz":       f"UCCSD ({uccsd_obj.n_params} params)",
+        "thetas_opt":      best_thetas,
+        "energy_opt":      energy_shots_val,
+        "energy_exact":    energy_exact,
+        "history":         history,
+        "n_qubits":        n,
+        "n_params":        uccsd_obj.n_params,
+        "ansatz":          f"UCCSD ({uccsd_obj.n_params} params)",
+        "hamiltonian_name": hamiltonian.name,
     }
 
 
@@ -128,82 +136,71 @@ def _run_vqe_uccsd(hamiltonian, uccsd_obj, shots, iterations):
 # ─────────────────────────────────────────────
 
 def _run_vqe_hardware(hamiltonian, shots, iterations, step_size, n_params):
+    from scipy.optimize import minimize
+    import numpy as np
+
     n = hamiltonian.n_qubits()
-    n_layers = 4 if n > 4 else 2
+    n_layers = 6 if n > 4 else 4
     effective_n_params = n_params or (n * n_layers)
 
     print(f"  ⟁  Aether VQE — '{hamiltonian.name}'")
     print(f"  {'─'*50}")
     print(f"  Qubits:     {n}")
-    print(f"  Ansatz:     Hardware-efficient (Ry+CNOT, {n_layers} layers)")
-    print(f"  Parameters: {effective_n_params}")
-    print(f"  Iterations: {iterations}")
-    print(f"  Step size:  {step_size}")
+    print(f"  Ansatz:     Hardware-efficient (Ry+CNOT, {n_layers} layers, {effective_n_params} params)")
+    print(f"  Optimizer:  BFGS (scipy)")
     print(f"  Shots:      {shots}  (final estimate)")
     print()
 
-    random.seed(42)
-    thetas = [random.gauss(0, 0.1) for _ in range(effective_n_params)]
-
     history = []
-    best_energy = float("inf")
-    best_thetas = list(thetas)
-    velocity = [0.0] * effective_n_params
-    momentum = 0.9
+    call_count = [0]
 
-    print(f"  {'Iter':>5}  {'Energy (exact)':>18}  {'ΔE':>12}  {'|∇E|':>10}")
-    print(f"  {'─'*52}")
+    def energy_fn(thetas):
+        call_count[0] += 1
+        state = prepare_ansatz_state(list(thetas), n)
+        e = exact_energy(state, hamiltonian)
+        history.append((call_count[0], e))
+        if call_count[0] % 20 == 1:
+            print(f"  {call_count[0]:>5}  {e:>+18.8f}")
+        return e
 
-    prev_energy = None
-    shift = math.pi / 2
+    # Multi-start: try several random initializations, keep best
+    random.seed(42)
+    best_result = None
+    best_e = float('inf')
+    n_starts = 3
 
-    for it in range(iterations):
-        state = prepare_ansatz_state(thetas, n)
-        energy = exact_energy(state, hamiltonian)
-        history.append((it, energy))
+    print(f"  {'Call':>5}  {'Energy (exact)':>18}")
+    print(f"  {'─'*26}")
 
-        if energy < best_energy:
-            best_energy = energy
-            best_thetas = list(thetas)
+    for start in range(n_starts):
+        x0 = np.array([random.gauss(0, 0.5) for _ in range(effective_n_params)])
+        result = minimize(
+            energy_fn, x0,
+            method='BFGS',
+            options={'maxiter': iterations // n_starts, 'gtol': 1e-7}
+        )
+        if result.fun < best_e:
+            best_e = result.fun
+            best_result = result
 
-        grads = []
-        for k in range(effective_n_params):
-            tp = list(thetas); tp[k] += shift
-            tm = list(thetas); tm[k] -= shift
-            ep = exact_energy(prepare_ansatz_state(tp, n), hamiltonian)
-            em = exact_energy(prepare_ansatz_state(tm, n), hamiltonian)
-            grads.append((ep - em) / 2.0)
-
-        grad_norm = math.sqrt(sum(g**2 for g in grads))
-        delta_str = f"{energy - prev_energy:+.6f}" if prev_energy is not None else ""
-
-        if it % 5 == 0 or it == iterations - 1:
-            print(f"  {it:>5}  {energy:>+18.8f}  {delta_str:>12}  {grad_norm:>10.6f}")
-
-        for k in range(effective_n_params):
-            velocity[k] = momentum * velocity[k] - step_size * grads[k]
-            thetas[k] += velocity[k]
-
-        prev_energy = energy
-        if grad_norm < 1e-6:
-            print(f"  Converged at iteration {it}")
-            break
-
-    print(f"  {'─'*52}")
+    print(f"  {'─'*26}")
+    print(f"  Best energy: {best_e:+.8f}  ({call_count[0]} total evaluations)")
     print()
 
+    best_thetas = list(best_result.x)
     opt_state = prepare_ansatz_state(best_thetas, n)
     energy_exact = exact_energy(opt_state, hamiltonian)
     energy_shots_val = measure_energy_shots(opt_state, hamiltonian, shots=shots)
 
     return {
-        "thetas_opt":   best_thetas,
-        "energy_opt":   energy_shots_val,
-        "energy_exact": energy_exact,
-        "history":      history,
-        "n_qubits":     n,
-        "n_params":     effective_n_params,
-        "ansatz":       f"Hardware-efficient (Ry+CNOT, {n_layers} layers)",
+        "thetas_opt":      best_thetas,
+        "energy_opt":      energy_shots_val,
+        "energy_exact":    energy_exact,
+        "history":         history,
+        "n_qubits":        n,
+        "n_params":        effective_n_params,
+        "ansatz":          f"Hardware-efficient (Ry+CNOT, {n_layers} layers, BFGS)",
+        "hamiltonian_name": hamiltonian.name,
     }
 
 
@@ -244,7 +241,27 @@ def print_vqe_results(name: str, result: dict):
     # Molecular benchmark
     n = result["n_qubits"]
     e = result["energy_exact"]
-    if n in BENCHMARKS:
+    ham_name = result.get("hamiltonian_name", "")
+
+    # Check Hubbard benchmarks first (by name)
+    matched = False
+    for key, (known_e, label) in HUBBARD_BENCHMARKS.items():
+        if ham_name.startswith(key):
+            error = abs(e - known_e) * 1000
+            print(f"  ── Hubbard benchmark ──────────────────────────────")
+            print(f"  System:        {label}")
+            print(f"  Aether VQE:    {e:+.8f}")
+            print(f"  Exact (ED):    {known_e:+.8f}")
+            print(f"  Error:          {error:.4f} milliHartree")
+            if error < 1.6:
+                print(f"  ✓  Chemical accuracy achieved (< 1.6 mH)")
+            else:
+                print(f"  ↑  {error/1.6:.1f}× above chemical accuracy")
+            print()
+            matched = True
+            break
+
+    if not matched and n in BENCHMARKS:
         known_e, mol_name = BENCHMARKS[n]
         error = abs(e - known_e) * 1000
         chem_acc = 1.6
