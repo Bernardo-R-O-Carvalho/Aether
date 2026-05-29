@@ -1,0 +1,85 @@
+# QAOA — Quantum Approximate Optimization Algorithm
+# ===================================================
+#
+# QAOA solves combinatorial optimization problems on quantum hardware.
+# The canonical problem: MaxCut.
+#
+# Given a graph G = (V, E), partition the nodes into two sets S and S̄
+# to maximize the number of edges CUT between S and S̄.
+#
+# This is NP-hard classically. QAOA provides a quantum approach with
+# provable approximation guarantees:
+#   p=1: ratio ≥ 0.6924 (proven by Farhi, Goldstone, Gutmann 2014)
+#   p→∞: converges to exact solution
+#
+# Aether syntax — the cleanest way to express this problem:
+#
+#   graph G:
+#       nodes N
+#       edge i j
+#
+#   infer G using qaoa(layers=p, shots=1024)
+#
+# No circuit code. No gate decomposition. No Pauli string manipulation.
+# Just the graph. Aether compiles it to QAOA automatically.
+#
+# Compare with Qiskit: ~80 lines. Aether: ~10 lines.
+
+# ── Triangle graph ────────────────────────────────────────────────────
+#
+# The simplest non-trivial MaxCut problem.
+# 3 nodes, 3 edges — MaxCut = 2 (one node isolated).
+#
+#     0
+#    / \
+#   1 — 2
+
+graph Triangle:
+    nodes 3
+    edge 0 1
+    edge 1 2
+    edge 0 2
+
+infer Triangle using qaoa(layers=1, shots=2048)
+
+# ── Butterfly graph ───────────────────────────────────────────────────
+#
+# 4 nodes, 5 edges — MaxCut = 4.
+# Two triangles sharing a vertex.
+#
+#   0   3
+#    \ /|
+#     2 |
+#    / \|
+#   1   4
+
+graph Butterfly:
+    nodes 5
+    edge 0 2
+    edge 1 2
+    edge 2 3
+    edge 2 4
+    edge 3 4
+
+infer Butterfly using qaoa(layers=2, shots=2048)
+
+# ── Petersen-inspired 6-node graph ────────────────────────────────────
+#
+# 6 nodes, 9 edges — a denser graph that challenges p=1 QAOA.
+# MaxCut requires p≥2 for high-quality solutions.
+#
+#   0 — 1 — 2
+#   |   |   |
+#   3 — 4 — 5
+
+graph Grid2x3:
+    nodes 6
+    edge 0 1
+    edge 1 2
+    edge 3 4
+    edge 4 5
+    edge 0 3
+    edge 1 4
+    edge 2 5
+
+infer Grid2x3 using qaoa(layers=2, shots=2048)

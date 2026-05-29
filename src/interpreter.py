@@ -1,6 +1,6 @@
 """
 Aether (.aeth) — Probabilistic + Quantum Programming Language
-Interpreter v0.4
+Interpreter v0.5
 
 Architecture overview:
   Source code (.aeth)
@@ -8,16 +8,16 @@ Architecture overview:
     → Parser      : tokens into an Abstract Syntax Tree (AST)
     → Runtime     : walks the AST and executes each node
 
-  Three execution modes coexist in the same .aeth file:
+  Four execution modes coexist in the same .aeth file:
     - Classical probabilistic  (model / infer using montecarlo or mcmc)
     - Quantum circuit          (quantum circuit / infer using quantum)
     - Hybrid VQE               (hamiltonian / infer using vqe)
+    - Graph optimization       (graph / infer using qaoa)
 
-New in v0.4:
-  1. Hamiltonian type           hamiltonian H: term c pauli_z(q0) ...
-  2. measure_energy             measure_energy H  →  prints ⟨ψ|H|ψ⟩
-  3. VQE inference engine       infer Ansatz using vqe(hamiltonian=H, ...)
-  4. Closed hybrid loop         quantum circuit + classical optimizer unified
+New in v0.5:
+  1. Graph type                graph G: nodes N  edge i j ...
+  2. QAOA inference engine     infer G using qaoa(layers=2, shots=1024)
+  3. Native MaxCut solver      automatic exact comparison + approximation ratio
 """
 
 import re, math, random, sys, os
@@ -237,11 +237,11 @@ class ParseError(AetherError): pass
 # Used to detect the end of a model body.
 # Note: 'for' is intentionally excluded — for loops can appear INSIDE models
 # (hierarchical models). 'for' at top level is also valid but rare.
-BLOCK_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy")
+BLOCK_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy", "graph")
 
 # Keywords that end a for loop body (subset — for can't be nested at top level
 # but CAN appear inside a model body)
-TOP_LEVEL_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy")
+TOP_LEVEL_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy", "graph")
 
 class AetherParser:
     def __init__(self, tokens, src_lines=None):
@@ -289,6 +289,7 @@ class AetherParser:
             if tok[1] == "import":        return self.parse_import()
             if tok[1] == "hamiltonian":   return self.parse_hamiltonian()
             if tok[1] == "measure_energy": return self.parse_measure_energy()
+            if tok[1] == "graph":         return self.parse_graph()
             return self.parse_assignment_or_sample()
         raise ParseError(f"\n  ✗  Parse error line {tok[2]}: unexpected token '{tok[1]}'")
 
@@ -366,12 +367,14 @@ class AetherParser:
           qiskit(shots=N)                                — Qiskit Aer simulator
           qiskit(shots=N, backend="ibm_brisbane")        — IBM real hardware
           vqe(hamiltonian=H, shots=N, iterations=I, step_size=S) — VQE closed loop
+          qaoa(layers=P, shots=N)                        — QAOA for graph problems
         """
         self.consume("ID", "infer"); name = self.consume("ID")[1]
         method, n, warmup, step_size, n_steps = "montecarlo", 1000, 500, 0.3, 10
         backend = None
         hamiltonian_name = None
         iterations = 80
+        layers = 1
         if self.match("ID", "using"):
             method = self.consume("ID")[1]
             if self.match("OP", "("):
@@ -388,10 +391,11 @@ class AetherParser:
                         elif key == "step_size":   step_size = float(val)
                         elif key == "steps":       n_steps = int(val)
                         elif key == "iterations":  iterations = int(val)
+                        elif key == "layers":      layers = int(val)
                     if self.peek()[1] == ",": self.consume("OP", ",")
                 self.consume("OP", ")")
         return ("infer", name, method, n, warmup, step_size, n_steps, backend,
-                hamiltonian_name, iterations)
+                hamiltonian_name, iterations, layers)
 
     def parse_observe(self):
         """
@@ -526,6 +530,50 @@ class AetherParser:
         self.consume("ID", "measure_energy")
         name = self.consume("ID")[1]
         return ("measure_energy", name, line)
+
+    def parse_graph(self):
+        """
+        Parse: graph <Name>:
+                   nodes <N>
+                   edge <i> <j>
+                   edge <i> <j>
+                   ...
+
+        Defines an undirected graph for QAOA optimization.
+        nodes declares the number of vertices.
+        edge declares an undirected edge between two node indices.
+
+        Example:
+          graph Triangle:
+              nodes 3
+              edge 0 1
+              edge 1 2
+              edge 0 2
+        """
+        line = self.line()
+        self.consume("ID", "graph")
+        name = self.consume("ID")[1]
+        self.consume("OP", ":")
+
+        n_nodes = 0
+        edges = []
+
+        while self.peek()[0] != "EOF":
+            tok = self.peek()
+            if tok[0] == "ID" and tok[1] in BLOCK_KEYWORDS:
+                break
+            if tok[0] == "ID" and tok[1] == "nodes":
+                self.consume("ID", "nodes")
+                n_nodes = int(self.consume("NUM")[1])
+            elif tok[0] == "ID" and tok[1] == "edge":
+                self.consume("ID", "edge")
+                i = int(self.consume("NUM")[1])
+                j = int(self.consume("NUM")[1])
+                edges.append((i, j))
+            else:
+                self.consume()
+
+        return ("graph", name, n_nodes, edges, line)
 
     def parse_assignment_or_sample(self):
         """
@@ -686,13 +734,14 @@ class Scope:
 
 class AetherRuntime:
     def __init__(self, base_path=None):
-        self.models       = {}          # name -> body (list of AST nodes)
-        self.circuits     = {}          # name -> body (list of quantum AST nodes)
-        self.hamiltonians = {}          # name -> Hamiltonian object
-        self.last_circuit_state = None  # state vector after last quantum run
+        self.models       = {}
+        self.circuits     = {}
+        self.hamiltonians = {}
+        self.graphs       = {}          # name -> Graph object
+        self.last_circuit_state = None
         self.global_scope = Scope()
         self.base_path = base_path or os.getcwd()
-        self._imported = set()          # tracks imported paths to prevent cycles
+        self._imported = set()
 
     def eval_expr(self, node, scope):
         """
@@ -889,14 +938,24 @@ class AetherRuntime:
             for s in ast:
                 self.exec_stmt(s, self.global_scope)
 
+        elif k == "graph":
+            # Build and register a Graph for QAOA.
+            _, name, n_nodes, edges, line = stmt
+            from qaoa_engine import Graph
+            g = Graph(name, n_nodes)
+            for i, j in edges:
+                g.add_edge(i, j)
+            self.graphs[name] = g
+
         elif k == "infer":
             # Route to the appropriate inference engine based on method.
-            _, name, method, n, warmup, step_size, n_steps, backend, hamiltonian_name, iterations = stmt
+            _, name, method, n, warmup, step_size, n_steps, backend, hamiltonian_name, iterations, layers = stmt
             if method == "quantum":   self.run_quantum(name, n)
             elif method == "qiskit":  self.run_qiskit(name, n, backend)
             elif method == "hmc":     self.run_hmc(name, n, warmup, step_size, n_steps)
             elif method == "mcmc":    self.run_mcmc(name, n, warmup, step_size)
             elif method == "vqe":     self.run_vqe(name, hamiltonian_name, n, iterations, step_size)
+            elif method == "qaoa":    self.run_qaoa(name, n, layers)
             else:                     self.run_classical(name, n)
 
     # ── Classical rejection sampling ─────────────────────────────────────
@@ -1064,6 +1123,33 @@ class AetherRuntime:
             step_size=step_size,
         )
         print_vqe_results(circuit_name, result)
+
+    def run_qaoa(self, graph_name: str, shots: int, layers: int):
+        """
+        Run QAOA for MaxCut on a registered graph.
+
+        The graph must be defined with a graph block:
+          graph MyGraph:
+              nodes N
+              edge i j
+              ...
+
+        infer MyGraph using qaoa(layers=P, shots=N)
+        """
+        from qaoa_engine import run_qaoa as _run_qaoa, print_qaoa_results
+        if graph_name not in self.graphs:
+            raise AetherError(
+                f"\n  ✗  Graph '{graph_name}' not defined\n"
+                f"     Define it with:\n"
+                f"       graph {graph_name}:\n"
+                f"           nodes N\n"
+                f"           edge i j"
+            )
+        g = self.graphs[graph_name]
+        result = _run_qaoa(g, layers=layers, shots=shots)
+        # Pass edges for cut calculation in print
+        result["edges"] = g.edges
+        print_qaoa_results(graph_name, result)
 
     def run(self, stmts):
         """Execute a list of top-level AST statements."""
