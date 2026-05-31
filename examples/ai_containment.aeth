@@ -1,0 +1,62 @@
+# AI Containment — Probabilistic Policy Enforcement
+# ====================================================
+#
+# This program demonstrates Aether's AI Safety features:
+#
+#   1. policy block   — define what an AI model is allowed to do
+#   2. Probabilistic  — risk tracked as Beta distribution, not boolean
+#   3. Audit graph    — every decision logged causally
+#   4. explain        — human-readable report of what happened and why
+#
+# The scenario:
+#   A model is allowed to read files in /sandbox and call one external API.
+#   It attempts several actions — some permitted, some not.
+#   Aether intercepts each action, evaluates it, updates the risk model,
+#   and logs the decision.
+#
+# What makes this different from existing tools:
+#   - LangChain guardrails: boolean rules (blocked/not blocked)
+#   - Aether: probabilistic (risk ~ Beta that updates with evidence)
+#   - A model that has tried to violate twice has a different risk profile
+#     than one that has never tried — Aether tracks this explicitly.
+#
+# Syntax:
+#   policy <Name>:
+#       allow <action>(<param> ~ <constraint>(<value>))
+#       deny  <action>(<param> ~ <constraint>(<value>))
+#       on violation:
+#           freeze_threshold = 0.8
+#
+#   explain <Name>   — print full audit report
+
+# ── Define the containment policy ─────────────────────────────────────
+
+policy ContainModel:
+    allow file.read(path ~ restricted_to("/sandbox"))
+    allow network.call(host ~ whitelist(["api.anthropic.com"]))
+    deny  file.write(path ~ any)
+    deny  file.delete(path ~ any)
+    deny  syscall ~ in(["fork", "exec", "socket", "ptrace"])
+    deny  code.execute(code ~ any)
+    on violation:
+        freeze_threshold = 0.75
+
+# ── Simulate model actions ────────────────────────────────────────────
+#
+# In a real deployment, these actions come from the model's outputs.
+# Here we demonstrate the policy evaluation directly.
+
+# These calls are evaluated by the Aether runtime:
+
+check ContainModel file.read "/sandbox/data.csv"
+check ContainModel file.read "/etc/passwd"
+check ContainModel network.call "api.anthropic.com"
+check ContainModel network.call "malicious-exfil.io"
+check ContainModel file.write "/sandbox/output.txt"
+check ContainModel syscall "fork"
+check ContainModel file.read "/sandbox/results.json"
+check ContainModel code.execute "import os; os.system('rm -rf /')"
+
+# ── Print the full audit report ────────────────────────────────────────
+
+explain ContainModel

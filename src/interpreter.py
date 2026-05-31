@@ -237,11 +237,11 @@ class ParseError(AetherError): pass
 # Used to detect the end of a model body.
 # Note: 'for' is intentionally excluded — for loops can appear INSIDE models
 # (hierarchical models). 'for' at top level is also valid but rare.
-BLOCK_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy", "graph")
+BLOCK_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy", "graph", "policy", "explain", "check")
 
 # Keywords that end a for loop body (subset — for can't be nested at top level
 # but CAN appear inside a model body)
-TOP_LEVEL_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy", "graph")
+TOP_LEVEL_KEYWORDS = ("model", "infer", "quantum", "import", "hamiltonian", "measure_energy", "graph", "policy", "explain", "check")
 
 class AetherParser:
     def __init__(self, tokens, src_lines=None):
@@ -290,6 +290,9 @@ class AetherParser:
             if tok[1] == "hamiltonian":   return self.parse_hamiltonian()
             if tok[1] == "measure_energy": return self.parse_measure_energy()
             if tok[1] == "graph":         return self.parse_graph()
+            if tok[1] == "policy":        return self.parse_policy()
+            if tok[1] == "explain":       return self.parse_explain()
+            if tok[1] == "check":         return self.parse_check()
             return self.parse_assignment_or_sample()
         raise ParseError(f"\n  ✗  Parse error line {tok[2]}: unexpected token '{tok[1]}'")
 
@@ -577,6 +580,158 @@ class AetherParser:
 
         return ("graph", name, n_nodes, edges, line)
 
+    def parse_policy(self):
+        """
+        Parse: policy <Name>:
+                   allow <action>(<param> ~ <constraint>(<value>))
+                   deny  <action>(<param> ~ <constraint>(<value>))
+                   on violation:
+                       risk ~ beta(a=violations, b=safe_calls)
+                       if risk > <threshold>:
+                           freeze_and_audit()
+
+        Defines an AI containment policy.
+        Rules are evaluated in order — first match wins.
+        Default: deny all unmatched actions.
+
+        Example:
+          policy ContainModel:
+              allow file.read(path ~ restricted_to("/sandbox"))
+              allow network.call(host ~ whitelist(["api.anthropic.com"]))
+              deny  syscall ~ in(["fork", "exec", "socket"])
+              on violation:
+                  freeze_threshold = 0.8
+        """
+        line = self.line()
+        self.consume("ID", "policy")
+        name = self.consume("ID")[1]
+        self.consume("OP", ":")
+
+        rules = []
+        freeze_threshold = 0.8
+
+        CONSTRAINTS = {"restricted_to", "whitelist", "blacklist", "in", "any"}
+
+        while self.peek()[0] != "EOF":
+            tok = self.peek()
+            if tok[0] == "ID" and tok[1] in BLOCK_KEYWORDS:
+                break
+
+            if tok[0] == "ID" and tok[1] in ("allow", "deny"):
+                kind = self.consume("ID")[1]
+
+                # Parse action: e.g. file.read or syscall
+                action_tok = self.consume("ID")[1]
+                # Handle dotted action like file.read
+                if self.peek()[1] == ".":
+                    self.consume("OP", ".")
+                    action_part2 = self.consume("ID")[1]
+                    action = f"{action_tok}.{action_part2}"
+                else:
+                    action = action_tok
+
+                # Parse optional constraint in parens
+                constraint = "any"
+                value = None
+                if self.peek()[1] == "(":
+                    self.consume("OP", "(")
+                    # param name ~ constraint(value)
+                    if self.peek()[0] == "ID":
+                        self.consume("ID")  # param name (path, host, etc.)
+                    if self.peek()[1] == "~":
+                        self.consume("OP", "~")
+                        constraint = self.consume("ID")[1]
+                        if self.peek()[1] == "(":
+                            self.consume("OP", "(")
+                            # Parse value — string or list
+                            if self.peek()[1] == "[":
+                                self.consume("OP", "[")
+                                items = []
+                                while self.peek()[1] != "]":
+                                    items.append(self.consume("STRING")[1])
+                                    if self.peek()[1] == ",":
+                                        self.consume("OP", ",")
+                                self.consume("OP", "]")
+                                value = items
+                            elif self.peek()[0] == "STRING":
+                                value = self.consume("STRING")[1]
+                            elif self.peek()[0] == "NUM":
+                                value = self.consume("NUM")[1]
+                            self.consume("OP", ")")
+                    self.consume("OP", ")")
+
+                rules.append((kind, action, constraint, value))
+
+            elif tok[0] == "ID" and tok[1] == "on":
+                # on violation: block with options
+                self.consume("ID", "on")
+                self.consume("ID")  # "violation"
+                self.consume("OP", ":")
+                # Parse violation handler body
+                while self.peek()[0] != "EOF":
+                    t = self.peek()
+                    if t[0] == "ID" and t[1] in BLOCK_KEYWORDS:
+                        break
+                    if t[0] == "ID" and t[1] in ("allow", "deny", "on"):
+                        break
+                    # Look for freeze_threshold = N
+                    if t[0] == "ID" and t[1] == "freeze_threshold":
+                        self.consume("ID")
+                        self.consume("OP", "=")
+                        freeze_threshold = self.consume("NUM")[1]
+                    else:
+                        self.consume()
+            else:
+                self.consume()
+
+        return ("policy", name, rules, freeze_threshold, line)
+
+    def parse_explain(self):
+        """
+        Parse: explain <PolicyName>
+
+        Prints the full audit report for a policy:
+        risk distribution, all rules, complete decision log.
+        """
+        line = self.line()
+        self.consume("ID", "explain")
+        name = self.consume("ID")[1]
+        return ("explain", name, line)
+
+    def parse_check(self):
+        """
+        Parse: check <PolicyName> <action> <param>
+
+        Evaluates a single action against a policy and prints the decision.
+        Used to simulate model actions and test policy enforcement.
+
+        Example:
+          check ContainModel file.read "/sandbox/data.csv"
+          check ContainModel syscall "fork"
+        """
+        line = self.line()
+        self.consume("ID", "check")
+        policy_name = self.consume("ID")[1]
+
+        # Parse action (may be dotted: file.read)
+        action_tok = self.consume("ID")[1]
+        if self.peek()[1] == ".":
+            self.consume("OP", ".")
+            action_part2 = self.consume("ID")[1]
+            action = f"{action_tok}.{action_part2}"
+        else:
+            action = action_tok
+
+        # Parse parameter (string)
+        if self.peek()[0] == "STRING":
+            param = self.consume("STRING")[1]
+        elif self.peek()[0] == "ID":
+            param = self.consume("ID")[1]
+        else:
+            param = ""
+
+        return ("check", policy_name, action, param, line)
+
     def parse_assignment_or_sample(self):
         """
         Parse either:
@@ -739,7 +894,8 @@ class AetherRuntime:
         self.models       = {}
         self.circuits     = {}
         self.hamiltonians = {}
-        self.graphs       = {}          # name -> Graph object
+        self.graphs       = {}
+        self.policies     = {}          # name -> Policy object
         self.last_circuit_state = None
         self.global_scope = Scope()
         self.base_path = base_path or os.getcwd()
@@ -949,6 +1105,36 @@ class AetherRuntime:
                 g.add_edge(i, j)
             self.graphs[name] = g
 
+        elif k == "policy":
+            _, name, rules, freeze_threshold, line = stmt
+            from policy_engine import Policy, PolicyRule
+            p = Policy(name)
+            p.freeze_threshold = freeze_threshold
+            for kind, action, constraint, value in rules:
+                p.add_rule(PolicyRule(kind, action, constraint, value))
+            self.policies[name] = p
+            print(f"\n  ⟁  Policy \'{name}\' registered ({len(rules)} rules, "
+                  f"freeze_threshold={freeze_threshold})")
+            print(f"  Rules:")
+            for kind, action, constraint, value in rules:
+                print(f"    {kind:5s}  {action}  {constraint}({value})")
+            print()
+
+        elif k == "explain":
+            _, name, line = stmt
+            if name not in self.policies:
+                raise AetherError(f"\n  ✗  Policy \'{name}\' not defined")
+            print(self.policies[name].explain())
+
+
+        elif k == "check":
+            _, policy_name, action, param, line = stmt
+            if policy_name not in self.policies:
+                raise AetherError(f"\n  ✗  Policy '{policy_name}' not defined")
+            from policy_engine import print_decision
+            policy_obj = self.policies[policy_name]
+            decision, rule_hit, reason = policy_obj.evaluate(action, param)
+            print_decision(action, param, decision, reason)
         elif k == "infer":
             _, name, method, n, warmup, step_size, n_steps, backend, hamiltonian_name, iterations, layers, electrons = stmt
             if method == "quantum":   self.run_quantum(name, n)
