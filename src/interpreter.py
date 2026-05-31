@@ -375,6 +375,7 @@ class AetherParser:
         hamiltonian_name = None
         iterations = 80
         layers = 1
+        electrons = None
         if self.match("ID", "using"):
             method = self.consume("ID")[1]
             if self.match("OP", "("):
@@ -392,10 +393,11 @@ class AetherParser:
                         elif key == "steps":       n_steps = int(val)
                         elif key == "iterations":  iterations = int(val)
                         elif key == "layers":      layers = int(val)
+                        elif key == "electrons":   electrons = int(val)
                     if self.peek()[1] == ",": self.consume("OP", ",")
                 self.consume("OP", ")")
         return ("infer", name, method, n, warmup, step_size, n_steps, backend,
-                hamiltonian_name, iterations, layers)
+                hamiltonian_name, iterations, layers, electrons)
 
     def parse_observe(self):
         """
@@ -948,13 +950,12 @@ class AetherRuntime:
             self.graphs[name] = g
 
         elif k == "infer":
-            # Route to the appropriate inference engine based on method.
-            _, name, method, n, warmup, step_size, n_steps, backend, hamiltonian_name, iterations, layers = stmt
+            _, name, method, n, warmup, step_size, n_steps, backend, hamiltonian_name, iterations, layers, electrons = stmt
             if method == "quantum":   self.run_quantum(name, n)
             elif method == "qiskit":  self.run_qiskit(name, n, backend)
             elif method == "hmc":     self.run_hmc(name, n, warmup, step_size, n_steps)
             elif method == "mcmc":    self.run_mcmc(name, n, warmup, step_size)
-            elif method == "vqe":     self.run_vqe(name, hamiltonian_name, n, iterations, step_size)
+            elif method == "vqe":     self.run_vqe(name, hamiltonian_name, n, iterations, step_size, electrons)
             elif method == "qaoa":    self.run_qaoa(name, n, layers)
             else:                     self.run_classical(name, n)
 
@@ -1092,18 +1093,7 @@ class AetherRuntime:
         if state is not None:
             self.last_circuit_state = state
 
-    def run_vqe(self, circuit_name, hamiltonian_name, shots, iterations, step_size):
-        """
-        Run the closed VQE loop:
-          - Uses the Hamiltonian defined by hamiltonian_name
-          - Optimizes a hardware-efficient ansatz (Ry + CNOT + Ry)
-          - Does NOT require a separately defined quantum circuit —
-            the ansatz is built automatically from the Hamiltonian's qubit count
-          - If circuit_name exists as a registered circuit, uses its qubit count
-
-        This is the unified hybrid loop:
-          classical gradient descent ←→ quantum energy measurement
-        """
+    def run_vqe(self, circuit_name, hamiltonian_name, shots, iterations, step_size, electrons=None):
         from vqe_engine import run_vqe as _run_vqe, print_vqe_results
         if hamiltonian_name is None:
             raise AetherError(
@@ -1121,6 +1111,7 @@ class AetherRuntime:
             shots=shots,
             iterations=iterations,
             step_size=step_size,
+            electrons=electrons,
         )
         print_vqe_results(circuit_name, result)
 

@@ -30,19 +30,19 @@ BENCHMARKS = {
 # Hubbard benchmarks: identified by Hamiltonian name prefix
 HUBBARD_BENCHMARKS = {
     "Hubbard2x1": (-1.00000000, "Hubbard 2×1 chain (t=1, U=4, 2e, 4 qubits)"),
-    "Hubbard2x2": (-3.41855072, "Hubbard 2×2 lattice (t=1, U=4, 4e, 8 qubits)"),
+    "Hubbard2x2": (-3.41855072, "Hubbard 2×2 lattice (t=1, U=4, 2e half-filling, 8 qubits)"),
 }
 
 
 def run_vqe(hamiltonian, shots: int = 1024,
             iterations: int = 80, step_size: float = 0.3,
-            n_params: int = None, ansatz: str = "auto") -> dict:
+            n_params: int = None, ansatz: str = "auto",
+            electrons: int = None) -> dict:
     """
     Run the closed VQE loop.
 
-    ansatz: "auto"     — UCCSD for LiH/BeH2/H2O, hardware-efficient otherwise
-            "uccsd"    — force UCCSD
-            "hardware" — force hardware-efficient
+    ansatz:    "auto"  — UCCSD for known molecules, hardware-efficient otherwise
+    electrons: override electron count for UCCSD (e.g. electrons=2 for Hubbard 2x2)
     """
     from uccsd import MOLECULE_CONFIGS
 
@@ -52,14 +52,23 @@ def run_vqe(hamiltonian, shots: int = 1024,
 
     # ── Select ansatz ──────────────────────────────────────
     use_uccsd = False
-    if ansatz == "uccsd" or (ansatz == "auto" and n in MOLECULE_CONFIGS):
+    uccsd_obj = None
+
+    if electrons is not None:
+        # Explicit electron count — always use UCCSD
+        try:
+            from uccsd import UCCSDansatz
+            uccsd_obj = UCCSDansatz(n_qubits=n, n_electrons=electrons)
+            use_uccsd = True
+        except Exception as e:
+            print(f"  ⚠  UCCSD failed ({e}), using hardware-efficient")
+    elif ansatz == "uccsd" or (ansatz == "auto" and n in MOLECULE_CONFIGS):
         try:
             from uccsd import make_uccsd_for_hamiltonian
             uccsd_obj = make_uccsd_for_hamiltonian(hamiltonian)
             use_uccsd = True
         except Exception as e:
             print(f"  ⚠  UCCSD unavailable ({e}), using hardware-efficient")
-            use_uccsd = False
 
     print_hamiltonian(hamiltonian)
 

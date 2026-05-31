@@ -38,6 +38,12 @@ MOLECULE_CONFIGS = {
     10: (8, "H₂O (frozen core)"),
 }
 
+# Hubbard-specific configs keyed by (n_qubits, n_electrons)
+HUBBARD_CONFIGS = {
+    (4, 2): "Hubbard 2×1 (t=1, U=4)",
+    (8, 2): "Hubbard 2×2 (t=1, U=4, half-filling)",
+}
+
 
 class UCCSDansatz:
     """
